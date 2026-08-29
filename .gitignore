@@ -90,3 +90,9 @@ temp_git_repair/
 # Deployment / external repos
 reanime-hf-deploy/
 
+# Local / internal dev scripts and metadata
+.FullName
+BUILD_PROFILES.md
+build_personal_arm64.bat
+build_qa_arm64.bat
+
