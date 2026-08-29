@@ -28,6 +28,8 @@ import 'package:vad_app/widgets/bottom_nav_bar.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:vad_app/services/scroll_service.dart';
 
+import 'package:vad_app/services/update_checker_service.dart';
+
 void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,10 +37,11 @@ void main() async {
   await GetStorage.init();
   await initializeDateFormatting();
 
-  // Register controllers
+  // Register controllers & services
   Get.put(SettingsController());
   Get.put(NotificationController());
   Get.put(ProfileController());
+  Get.put(UpdateCheckerService());
   if (!BuildConfig.isProduction) {
     Get.put(DownloadController());
   }
@@ -102,6 +105,17 @@ class _MainShellState extends State<MainShell> {
 
   final settings = Get.find<SettingsController>();
   final notifications = Get.find<NotificationController>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for updates in background after UI stabilizes
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        UpdateCheckerService.instance.checkForUpdate(manual: false);
+      }
+    });
+  }
 
   // KissKH nav: Home | Browse | History | Profile
   List<Widget> get _screens => [

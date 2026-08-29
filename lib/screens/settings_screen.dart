@@ -9,6 +9,7 @@ import 'package:vad_app/screens/testing_screen.dart';
 import 'package:vad_app/screens/vault_screen.dart';
 import 'package:vad_app/theme/app_theme.dart';
 import 'package:vad_app/config/build_config.dart';
+import 'package:vad_app/services/update_checker_service.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -673,6 +674,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // ── ABOUT ─────────────────────────────────────────────────────
             _sectionHeader('About'),
+            _settingTile(
+              icon: Iconsax.cloud_change,
+              title: 'Check for Updates',
+              subtitle: 'Check GitHub for the latest Dramawhat release',
+              trailing: Obx(() => UpdateCheckerService.instance.isChecking.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                      ),
+                    )
+                  : const Icon(Iconsax.arrow_right_3, size: 16, color: AppTheme.textMuted)),
+              onTap: () => UpdateCheckerService.instance.checkForUpdate(manual: true),
+            ),
             _settingTile(
               icon: Iconsax.shield_tick,
               title: 'Privacy Policy',
