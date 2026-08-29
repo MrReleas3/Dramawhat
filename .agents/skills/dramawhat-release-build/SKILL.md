@@ -3,12 +3,12 @@ name: dramawhat-release-build
 description: >-
   Mandatory release, build, and versioning protocol for Dramawhat / KissKH Flutter application.
   Must be consulted before executing any build, compilation (ARM64/APK), or release task.
-  Enforces automatic version bumping in pubspec.yaml, settings_controller.dart, and release artifact generation.
+  Enforces automatic version bumping, stale APK artifact cleanup, and clean release generation.
 ---
 
 # Dramawhat Build & Release Protocol
 
-This skill defines the mandatory, step-by-step release process for the Dramawhat application.
+This skill defines the mandatory release process for the Dramawhat application.
 
 ---
 
@@ -25,26 +25,30 @@ Whenever the user asks to **"build"**, **"create production release"**, **"updat
      - `../kisskh.js` (`"version": "0.0.x"` if JS extension changed)
 3. Ensure Git history reflects the new version tag.
 
----
-
-## 🛠️ Build Commands Matrix
-
-| Profile / Target | Flavor | Dart Define | Command |
-| :--- | :--- | :--- | :--- |
-| **Production ARM64** | `production` | `BUILD_PROFILE=production` | `flutter build apk --flavor production --dart-define=BUILD_PROFILE=production --target-platform android-arm64` |
-| **Personal ARM64** | `personal` | `BUILD_PROFILE=personal` | `flutter build apk --flavor personal --dart-define=BUILD_PROFILE=personal --target-platform android-arm64` |
+### 2. Clean Stale Output Artifacts
+Before running the build, clean all old APK files from `build\app\outputs\flutter-apk` to prevent confusion:
+```powershell
+Remove-Item "build\app\outputs\flutter-apk\*.apk", "build\app\outputs\flutter-apk\*.sha1" -Force -ErrorAction SilentlyContinue
+```
 
 ---
 
-## 📦 Post-Build Artifact Copy & Naming
+## 🛠️ Build Command
 
-After a successful compilation:
-1. Always copy the output APK to versioned and standard release names:
+```powershell
+flutter build apk --flavor production --dart-define=BUILD_PROFILE=production --target-platform android-arm64
+```
+
+---
+
+## 📦 Single Official Release Artifact
+
+After compilation, maintain **only one clear release file**:
+1. Copy the output to `Dramwhat.apk`:
    ```powershell
    Copy-Item "build\app\outputs\flutter-apk\app-production-release.apk" "build\app\outputs\flutter-apk\Dramwhat.apk" -Force
-   Copy-Item "build\app\outputs\flutter-apk\app-production-release.apk" "build\app\outputs\flutter-apk\Dramwhat_v<VERSION>.apk" -Force
    ```
-2. Verify the output size and file timestamps.
+2. The user will find their ready-to-use APK at: `build\app\outputs\flutter-apk\Dramwhat.apk`.
 
 ---
 
@@ -56,5 +60,5 @@ After a successful compilation:
    git commit -m "Bump version to v<VERSION> and update release artifacts"
    git push origin main
    ```
-2. Remind/guide the user to attach `Dramwhat.apk` to the GitHub release at:
+2. Attach `Dramwhat.apk` to the GitHub release at:
    - `https://github.com/MrReleas3/Dramawhat/releases/new` with tag `v<VERSION>`.
