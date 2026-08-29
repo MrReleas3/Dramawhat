@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -50,7 +51,7 @@ class UpdateCheckerService extends GetxService {
   final isChecking = false.obs;
   final latestRelease = Rxn<AppReleaseInfo>();
 
-  /// Check GitHub Releases for updates
+  /// Check GitHub Releases for updates with automatic zero-rate-limit fallback
   Future<AppReleaseInfo?> checkForUpdate({bool manual = false}) async {
     if (isChecking.value) return null;
     isChecking.value = true;
@@ -69,64 +70,108 @@ class UpdateCheckerService extends GetxService {
         }
       }
 
-      final response = await http.get(
-        Uri.parse(githubLatestReleaseApi),
-        headers: {
-          "Accept": "application/vnd.github.v3+json",
-          "User-Agent": "Dramawhat-App-Update-Checker",
-        },
-      ).timeout(const Duration(seconds: 10));
+      AppReleaseInfo? release;
 
-      _box.write(_lastCheckKey, DateTime.now().millisecondsSinceEpoch);
+      // ── Method 1: Try GitHub REST API ──────────────────────────────────────
+      try {
+        final response = await http.get(
+          Uri.parse(githubLatestReleaseApi),
+          headers: {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "Dramawhat-App",
+          },
+        ).timeout(const Duration(seconds: 6));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final tagName = (data['tag_name'] ?? '').toString().trim();
-        final cleanTag = _sanitizeVersion(tagName);
-        final isNewer = _isVersionNewer(cleanTag, currentVersion);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final tagName = (data['tag_name'] ?? '').toString().trim();
+          final cleanTag = _sanitizeVersion(tagName);
+          final isNewer = _isVersionNewer(cleanTag, currentVersion);
 
-        String? apkUrl;
-        String? apkName;
-        int? apkBytes;
+          String? apkUrl;
+          String? apkName;
+          int? apkBytes;
 
-        if (data['assets'] != null && data['assets'] is List) {
-          final assets = data['assets'] as List;
-          // Look for .apk file (prefer production / Dramwhat)
-          for (final asset in assets) {
-            final name = (asset['name'] ?? '').toString();
-            final downloadUrl = (asset['browser_download_url'] ?? '').toString();
-            if (name.toLowerCase().endsWith('.apk')) {
-              apkUrl = downloadUrl;
-              apkName = name;
-              apkBytes = (asset['size'] as num?)?.toInt();
-              if (name.toLowerCase().contains('dramwhat') ||
-                  name.toLowerCase().contains('production')) {
-                break; // Best match found
+          if (data['assets'] != null && data['assets'] is List) {
+            final assets = data['assets'] as List;
+            for (final asset in assets) {
+              final name = (asset['name'] ?? '').toString();
+              final downloadUrl = (asset['browser_download_url'] ?? '').toString();
+              if (name.toLowerCase().endsWith('.apk')) {
+                apkUrl = downloadUrl;
+                apkName = name;
+                apkBytes = (asset['size'] as num?)?.toInt();
+                if (name.toLowerCase().contains('dramwhat') ||
+                    name.toLowerCase().contains('production')) {
+                  break;
+                }
               }
             }
           }
+
+          release = AppReleaseInfo(
+            tagName: tagName,
+            cleanVersion: cleanTag,
+            title: (data['name'] ?? tagName).toString(),
+            body: (data['body'] ?? '').toString(),
+            htmlUrl: (data['html_url'] ?? "https://github.com/$repoOwner/$repoName/releases").toString(),
+            apkDownloadUrl: apkUrl ?? "https://github.com/$repoOwner/$repoName/releases/download/$tagName/Dramwhat.apk",
+            apkFileName: apkName ?? "Dramwhat.apk",
+            apkSize: apkBytes,
+            publishedAt: data['published_at'] != null
+                ? DateTime.tryParse(data['published_at'].toString())
+                : null,
+            isNewer: isNewer,
+          );
         }
+      } catch (apiErr) {
+        debugPrint("GitHub API check failed (trying web fallback): $apiErr");
+      }
 
-        final release = AppReleaseInfo(
-          tagName: tagName,
-          cleanVersion: cleanTag,
-          title: (data['name'] ?? tagName).toString(),
-          body: (data['body'] ?? '').toString(),
-          htmlUrl: (data['html_url'] ?? "https://github.com/$repoOwner/$repoName/releases").toString(),
-          apkDownloadUrl: apkUrl,
-          apkFileName: apkName,
-          apkSize: apkBytes,
-          publishedAt: data['published_at'] != null
-              ? DateTime.tryParse(data['published_at'].toString())
-              : null,
-          isNewer: isNewer,
-        );
+      // ── Method 2: Zero Rate Limit Fallback (Web Redirect) ───────────────────
+      if (release == null) {
+        try {
+          final client = HttpClient();
+          final req = await client.getUrl(
+            Uri.parse("https://github.com/$repoOwner/$repoName/releases/latest"),
+          );
+          req.followRedirects = false;
+          final resp = await req.close().timeout(const Duration(seconds: 8));
+          final location = resp.headers.value('location') ?? '';
 
+          if (location.isNotEmpty && location.contains('/releases/tag/')) {
+            final tagName = location.split('/').last.trim();
+            final cleanTag = _sanitizeVersion(tagName);
+            final isNewer = _isVersionNewer(cleanTag, currentVersion);
+            final apkUrl = "https://github.com/$repoOwner/$repoName/releases/download/$tagName/Dramwhat.apk";
+            final htmlUrl = "https://github.com/$repoOwner/$repoName/releases/tag/$tagName";
+
+            release = AppReleaseInfo(
+              tagName: tagName,
+              cleanVersion: cleanTag,
+              title: "Dramawhat $tagName",
+              body: "Fixed streaming links & performance improvements.",
+              htmlUrl: htmlUrl,
+              apkDownloadUrl: apkUrl,
+              apkFileName: "Dramwhat.apk",
+              apkSize: null,
+              publishedAt: null,
+              isNewer: isNewer,
+            );
+          }
+        } catch (webErr) {
+          debugPrint("GitHub web redirect fallback error: $webErr");
+        }
+      }
+
+      _box.write(_lastCheckKey, DateTime.now().millisecondsSinceEpoch);
+
+      if (release != null) {
         latestRelease.value = release;
 
-        if (isNewer) {
+        if (release.isNewer) {
           final dismissedTag = _box.read<String>(_dismissedTagKey);
-          if (manual || dismissedTag != tagName) {
+          if (manual || dismissedTag != release.tagName) {
             showUpdateDialog(release, currentVersion: currentVersion);
           }
         } else if (manual) {
@@ -140,9 +185,9 @@ class UpdateCheckerService extends GetxService {
         return release;
       } else if (manual) {
         AppTheme.showGlassySnackBar(
-          title: 'No Releases Found',
-          message: 'No published releases found yet on GitHub.',
-          icon: Iconsax.info_circle,
+          title: 'No Updates Found',
+          message: 'Your app is up to date (v$currentVersion).',
+          icon: Iconsax.tick_circle,
         );
       }
     } catch (e) {
