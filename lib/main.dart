@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 import 'dart:async';
 
@@ -31,7 +30,6 @@ import 'package:vad_app/services/scroll_service.dart';
 import 'package:vad_app/services/update_checker_service.dart';
 
 void main() async {
-  HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
   await GetStorage.init();
@@ -860,14 +858,5 @@ class _PulsingDownloadIconState extends State<_PulsingDownloadIcon> with SingleT
         );
       },
     );
-  }
-}
-
-class MyHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
   }
 }

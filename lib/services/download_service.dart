@@ -143,7 +143,6 @@ class DownloadService extends GetxService {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 30);
       client.idleTimeout = const Duration(minutes: 5);
-      client.badCertificateCallback = (cert, host, port) => true;
 
       final isHls = item.sourceUrl.contains('.m3u8') || item.sourceUrl.contains('m3u8');
       if (isHls) {

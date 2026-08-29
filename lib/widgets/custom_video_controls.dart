@@ -1827,15 +1827,15 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
     final isCurrent = index == widget.currentEpisodeIndex;
     
     final parsedNum = ep.episodeNumber;
-    final displayEpisodeNumber = (parsedNum != null && parsedNum > 0)
-        ? parsedNum == parsedNum.truncateToDouble()
+    final displayEpisodeNumber = parsedNum > 0
+        ? (parsedNum == parsedNum.truncateToDouble()
             ? parsedNum.toInt().toString()
-            : parsedNum.toString()
+            : parsedNum.toString())
         : '${index + 1}';
     final formattedDate = _formatUploadDate(ep.dateUpload);
 
-    final epName = ep.name?.isNotEmpty == true
-        ? ep.name!
+    final epName = ep.name.isNotEmpty
+        ? ep.name
         : 'Episode $displayEpisodeNumber';
     final description = ep.description;
     final thumbnail = ep.thumbnail;

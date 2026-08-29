@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/services/notification_service.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -53,7 +52,6 @@ class AppNotification {
 }
 
 class NotificationController extends GetxController {
-  final SettingsController _settings = Get.find<SettingsController>();
   final NotificationService _notificationSvc = NotificationService();
   final _storage   = GetStorage();
   final _storageKey = 'app_notifications';

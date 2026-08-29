@@ -57,12 +57,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _syncImportedToCloud(
-    List<Map<String, dynamic>> items,
-    String token,
-  ) async {
-    // Local KissKH storage — no cloud sync required
-  }
 
   void _showVaultPasswordDialog() {
     final ctrl = TextEditingController();
@@ -149,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool testingMode = false,
   }) {
     final settings = Get.find<SettingsController>();
-    if (input == settings.getVaultPassword()) {
+    if (settings.checkVaultPassword(input)) {
       Navigator.pop(dialogContext);
       if (testingMode) {
         settings.testingUnlocked = true; // Remember for this session

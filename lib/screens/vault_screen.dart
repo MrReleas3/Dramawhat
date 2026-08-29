@@ -134,7 +134,7 @@ class _VaultScreenState extends State<VaultScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    if (currentCtrl.text != settings.getVaultPassword()) {
+                    if (!settings.checkVaultPassword(currentCtrl.text)) {
                       AppTheme.showGlassySnackBar(
                         title: 'Error',
                         message: 'Current password is wrong',

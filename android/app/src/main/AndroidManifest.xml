@@ -10,6 +10,7 @@
         android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:largeHeap="true">
         <activity
             android:name=".MainActivity"
@@ -31,22 +32,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-            
-            <!-- Deep linking intent filter for AniList OAuth 2.0 -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="vadapp" android:host="oauth2redirect" />
-            </intent-filter>
-            
-            <!-- Deep linking intent filter for Mangayomi extension direct installs -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="mangayomi" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

@@ -154,24 +154,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  void _clearFilters() {
-    _debounce?.cancel();
-    _searchController.clear();
-    setState(() {
-      activeFilters = {
-        'type': '0',
-        'sub': '0',
-        'country': '0',
-        'status': '0',
-        'order': '1',
-      };
-      errorMessage = null;
-      page = 1;
-      results.clear();
-      loading = true;
-    });
-    _search();
-  }
 
   void _showFilterSheet() {
     showModalBottomSheet(

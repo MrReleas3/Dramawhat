@@ -60,16 +60,40 @@ class MediaDetails {
     if (json['episodes'] != null && json['episodes'] is List) {
       for (final ep in json['episodes']) {
         final epId = ep['id']?.toString() ?? '';
-        final rawNum = (ep['number'] as num?)?.toDouble() ?? 1.0;
+        double rawNum = 0.0;
+        if (ep['number'] is num) {
+          rawNum = (ep['number'] as num).toDouble();
+        } else if (ep['number'] != null) {
+          rawNum = double.tryParse(ep['number'].toString()) ?? 0.0;
+        }
+
+        // If number is missing or 0, attempt parsing from title/name
+        if (rawNum == 0.0) {
+          final titleStr = (ep['title'] ?? ep['name'] ?? '').toString();
+          final match = RegExp(r'(?:ep|episode|#|\b)\s*(\d+(?:\.\d+)?)', caseSensitive: false).firstMatch(titleStr);
+          if (match != null) {
+            rawNum = double.tryParse(match.group(1)!) ?? 0.0;
+          }
+        }
+
         final formattedEpNum = rawNum % 1 == 0 ? rawNum.toInt().toString() : rawNum.toString();
+        final isSub = ep['sub'] != null && (ep['sub'] is int ? ep['sub'] > 0 : (ep['sub'] is bool ? ep['sub'] : ep['sub'].toString().isNotEmpty && ep['sub'].toString() != '0'));
 
         episodes.add(Episode(
           id: epId,
           episodeNumber: rawNum,
-          title: ep['sub'] != null && ep['sub'] > 0 ? 'Episode $formattedEpNum (SUB)' : 'Episode $formattedEpNum',
+          title: isSub ? 'Episode $formattedEpNum (SUB)' : 'Episode $formattedEpNum',
           url: '$baseUrl/watch/$dramaId?ep=$epId',
         ));
       }
+
+      // Sort episodes ascending by episodeNumber so Episode 1 is index 0 and Episode N is last
+      episodes.sort((a, b) {
+        if (a.episodeNumber > 0 && b.episodeNumber > 0) {
+          return a.episodeNumber.compareTo(b.episodeNumber);
+        }
+        return 0;
+      });
     }
 
     // Dynamic release year parsing if available

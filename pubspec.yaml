@@ -1,7 +1,7 @@
 name: vad_app
 description: "KissKH - Asian Drama & Anime Streaming"
 publish_to: 'none'
-version: 0.5.3
+version: 0.5.4
 
 environment:
   sdk: ">=3.8.1 <4.0.0"

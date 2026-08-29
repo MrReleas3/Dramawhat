@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
@@ -39,7 +40,13 @@ class _K {
 class SettingsController extends GetxController {
   final _box    = GetStorage();
 
-  final _vaultPin = 'Nuord'.obs;
+  static const _vaultSalt = 'dramawhat_vault_salt_v1';
+  static String hashVaultPin(String pin) {
+    final bytes = utf8.encode('$_vaultSalt${pin.trim()}');
+    return sha256.convert(bytes).toString();
+  }
+
+  final _vaultPinHash = ''.obs;
 
   // ── Toggles ──────────────────────────────────────────────────────────────
   final enableCC                  = true.obs;
@@ -63,7 +70,7 @@ class SettingsController extends GetxController {
   final mainRefreshTicker = 0.obs;
 
   // ── App version ───────────────────────────────────────────────────────────
-  final appVersion = '0.5.3'.obs;
+  final appVersion = '0.5.4'.obs;
 
   // ── Session-only flags (not persisted) ───────────────────────────────────
   bool testingUnlocked = false;
@@ -105,11 +112,18 @@ class SettingsController extends GetxController {
   // Private helpers
   // ─────────────────────────────────────────────────────────────────────────
   void _initVaultPin() {
-    final pin = _box.read<String>('vault_pin');
-    if (pin != null) {
-      _vaultPin.value = pin;
+    final stored = _box.read<String>('vault_pin');
+    if (stored != null && stored.isNotEmpty) {
+      if (stored.length == 64 && RegExp(r'^[a-fA-F0-9]+$').hasMatch(stored)) {
+        _vaultPinHash.value = stored;
+      } else {
+        // Automatically migrate legacy plaintext PIN to salted SHA-256 hash
+        final hashed = hashVaultPin(stored);
+        _vaultPinHash.value = hashed;
+        _box.write('vault_pin', hashed);
+      }
     } else {
-      _vaultPin.value = 'Nuord';
+      _vaultPinHash.value = hashVaultPin('Nuord');
     }
   }
 
@@ -447,11 +461,14 @@ class SettingsController extends GetxController {
     return {};
   }
 
-  String getVaultPassword() => _vaultPin.value;
+  bool checkVaultPassword(String input) {
+    return hashVaultPin(input) == _vaultPinHash.value;
+  }
 
   void setVaultPassword(String password) {
-    _vaultPin.value = password;
-    _box.write('vault_pin', password);
+    final hashed = hashVaultPin(password);
+    _vaultPinHash.value = hashed;
+    _box.write('vault_pin', hashed);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

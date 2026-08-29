@@ -198,6 +198,36 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
     _fetchDetailsAndEpisodes();
   }
 
+  List<Episode> _normalizeAndSortEpisodes(List<Episode> list) {
+    final copy = List<Episode>.from(list);
+    copy.sort((a, b) {
+      if (a.episodeNumber > 0 && b.episodeNumber > 0) {
+        return a.episodeNumber.compareTo(b.episodeNumber);
+      }
+      return 0;
+    });
+    return copy;
+  }
+
+  int _resolveEpisodeIndex(int requestedEpisode, List<Episode> episodes) {
+    if (episodes.isEmpty) return 0;
+    // 1. Match by episodeNumber (e.g. 1, 2, 12)
+    final numIndex = episodes.indexWhere((e) => e.episodeNumber.toInt() == requestedEpisode);
+    if (numIndex >= 0) return numIndex;
+
+    // 2. If requestedEpisode is within 0-based bounds
+    if (requestedEpisode >= 0 && requestedEpisode < episodes.length) {
+      return requestedEpisode;
+    }
+
+    // 3. If requestedEpisode is within 1-based bounds
+    if (requestedEpisode > 0 && requestedEpisode - 1 < episodes.length) {
+      return requestedEpisode - 1;
+    }
+
+    return 0;
+  }
+
   Future<void> _fetchDetailsAndEpisodes() async {
     setState(() {
       _loadingDetails = true;
@@ -206,9 +236,10 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
     try {
       final details = await kisskhService.fetchDetail(widget.animeId.toString());
       if (mounted) {
+        final sortedEpisodes = _normalizeAndSortEpisodes(details?.episodeList ?? []);
         setState(() {
           _details = details;
-          _episodes = details?.episodeList ?? [];
+          _episodes = sortedEpisodes;
           _loadingDetails = false;
         });
 
@@ -218,21 +249,26 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
             final history = settings.getHistory();
             final histEntry = history['${widget.animeId}'];
             if (histEntry != null && histEntry is Map) {
-              final histEp = (histEntry['episode'] as int? ?? 1) - 1; // 0-indexed
+              final savedEpNum = histEntry['episode'] as int? ?? 1;
               final posMs = histEntry['positionMs'] as int? ?? 0;
               final durMs = histEntry['durationMs'] as int? ?? 0;
 
+              int targetIndex = _episodes.indexWhere((e) => e.episodeNumber.toInt() == savedEpNum);
+              if (targetIndex < 0) {
+                targetIndex = (savedEpNum - 1).clamp(0, _episodes.length - 1);
+              }
+
               final isCompleted = durMs > 0 && posMs > (durMs * 0.85);
-              if (isCompleted && histEp + 1 < _episodes.length) {
-                _currentEpisodeIndex = histEp + 1;
+              if (isCompleted && targetIndex + 1 < _episodes.length) {
+                _currentEpisodeIndex = targetIndex + 1;
                 _seekToMs = 0;
               } else {
-                _currentEpisodeIndex = histEp.clamp(0, _episodes.length - 1);
+                _currentEpisodeIndex = targetIndex;
                 _seekToMs = posMs;
               }
             }
           } else {
-            _currentEpisodeIndex = widget.startEpisode.clamp(0, _episodes.length - 1);
+            _currentEpisodeIndex = _resolveEpisodeIndex(widget.startEpisode, _episodes);
             _seekToMs = widget.startPositionMs;
           }
 
@@ -395,7 +431,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       if ((posMs - _lastSavedPositionMs).abs() < 5000) return;
 
       if (posMs > 0 && durMs > 0) {
-        final epNum = (_currentEpisodeIndex < _episodes.length)
+        final epNum = (_currentEpisodeIndex < _episodes.length && _episodes[_currentEpisodeIndex].episodeNumber > 0)
             ? _episodes[_currentEpisodeIndex].episodeNumber.toInt()
             : _currentEpisodeIndex + 1;
 
@@ -425,7 +461,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       currentMap['coverImage'] = {'large': _details?.coverUrl ?? widget.coverImage ?? ''};
       currentMap['timestamp'] = DateTime.now().millisecondsSinceEpoch;
 
-      final epNum = (_currentEpisodeIndex < _episodes.length)
+      final epNum = (_currentEpisodeIndex < _episodes.length && _episodes[_currentEpisodeIndex].episodeNumber > 0)
           ? _episodes[_currentEpisodeIndex].episodeNumber.toInt()
           : _currentEpisodeIndex + 1;
 
@@ -658,9 +694,13 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildVideoPlayer() {
-    final epTitle = (_episodes.isNotEmpty && _currentEpisodeIndex < _episodes.length)
-        ? _episodes[_currentEpisodeIndex].title
-        : 'Episode ${_currentEpisodeIndex + 1}';
+    final currentEp = (_episodes.isNotEmpty && _currentEpisodeIndex < _episodes.length)
+        ? _episodes[_currentEpisodeIndex]
+        : null;
+    final epTitle = currentEp?.title ?? 'Episode ${_currentEpisodeIndex + 1}';
+    final epNumber = (currentEp != null && currentEp.episodeNumber > 0)
+        ? currentEp.episodeNumber.toInt()
+        : _currentEpisodeIndex + 1;
 
     return VideoPlayerSection(
       player: _player,
@@ -681,7 +721,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       onRetry: () => _loadVideoForEpisode(_currentEpisodeIndex),
       title: _details?.title ?? widget.title,
       subtitle: epTitle,
-      episodeNumber: _currentEpisodeIndex + 1,
+      episodeNumber: epNumber,
       episodes: _episodes,
       currentEpisodeIndex: _currentEpisodeIndex,
       onEpisodeTapped: (idx) => _loadVideoForEpisode(idx),
@@ -909,7 +949,6 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   Widget _buildAnimeDetailsTab() {
     final desc = _details?.description ?? 'No description available.';
     final genres = _details?.genres ?? [];
-    final tags = _details?.tags ?? [];
     final recs = _details?.recommendations ?? [];
 
     return CustomScrollView(
