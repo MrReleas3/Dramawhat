@@ -1,22 +1,19 @@
-# Dramawhat Build & Versioning Rule
+# Dramawhat Release, Versioning & Changelog Rule
 
 **Always Active Rule**:
-Whenever the user requests a build, APK compilation, or release (e.g. "build arm64", "create release", "build production"):
+Whenever the user requests a release, build, or new version (e.g. "release v0.5.2", "publish build", "create release"):
 
-1. **Auto-Clean Stale Output Artifacts**:
-   - Clean `build\app\outputs\flutter-apk\*.apk` before compiling to ensure no confusing old APK files remain.
-
-2. **Always Check and Increment App Version**:
+1. **Auto-Increment Version**:
    - Inspect `pubspec.yaml` and `lib/controllers/settings_controller.dart`.
-   - If the codebase has changed or a new release is being generated, increment the patch/minor version before building.
+   - Bump version to next increment (e.g. `0.5.1` -> `0.5.2`).
 
-3. **Always Execute Clean ARM64 Build**:
-   - Set clean Flutter SDK path (`C:\flutter_sdk\bin;C:\flutter_sdk\bin\cache\dart-sdk\bin`).
-   - Run `flutter build apk --flavor production --dart-define=BUILD_PROFILE=production --target-platform android-arm64`.
+2. **Generate Release Notes / Changelog**:
+   - Always compile a clear markdown list of what changed, fixed, or updated.
+   - Include the release notes in the git commit, the annotated git tag, and GitHub Release.
 
-4. **Single Release File in Output**:
-   - Copy `build/app/outputs/flutter-apk/app-production-release.apk` to `Dramwhat.apk`.
+3. **Trigger Automated Cloud Release**:
+   - Push commit and annotated version tag (`git push origin main && git push origin v<VERSION>`).
+   - GitHub Actions will build `Dramwhat.apk` and publish the release automatically.
 
-5. **Always Push and Link to GitHub Releases**:
-   - Commit and push to `https://github.com/MrReleas3/Dramawhat`.
-   - Provide the exact GitHub Release link with matching version tag.
+4. **Clean Local Artifacts**:
+   - If compiling locally, clean all stale `.apk` files first and produce only `Dramwhat.apk`.

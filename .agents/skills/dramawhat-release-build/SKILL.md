@@ -3,62 +3,54 @@ name: dramawhat-release-build
 description: >-
   Mandatory release, build, and versioning protocol for Dramawhat / KissKH Flutter application.
   Must be consulted before executing any build, compilation (ARM64/APK), or release task.
-  Enforces automatic version bumping, stale APK artifact cleanup, and clean release generation.
+  Enforces automatic version bumping, changelog release notes generation, stale APK artifact cleanup, and automated GitHub Actions release publishing.
 ---
 
 # Dramawhat Build & Release Protocol
 
-This skill defines the mandatory release process for the Dramawhat application.
+This skill defines the automated, step-by-step release process for the Dramawhat application.
 
 ---
 
-## 🚨 Cardinal Rules Before Building
+## 🚨 Mandatory Release Protocol
 
-Whenever the user asks to **"build"**, **"create production release"**, **"update release"**, or **"compile arm64"**:
+Whenever the user asks to **"release"**, **"build"**, **"publish"**, or **"create new version"**:
 
-### 1. Check & Increment Version
-1. Read current version in `pubspec.yaml` (e.g., `version: 0.5.1`).
-2. If new changes, bug fixes, source updates, or features were added since the last release:
-   - **Bump the version** in:
-     - `pubspec.yaml` (e.g., `version: 0.5.2`)
-     - `lib/controllers/settings_controller.dart` (`appVersion = '0.5.2'.obs`)
-     - `../kisskh.js` (`"version": "0.0.x"` if JS extension changed)
-3. Ensure Git history reflects the new version tag.
+### 1. Version Bump
+1. Read the current version in `pubspec.yaml` (e.g., `0.5.1`).
+2. Increment to the next semantic version (e.g., `0.5.2`):
+   - `pubspec.yaml` -> `version: 0.5.2`
+   - `lib/controllers/settings_controller.dart` -> `appVersion = '0.5.2'.obs`
+   - `../kisskh.js` -> bump `"version"` if scraping logic changed.
 
-### 2. Clean Stale Output Artifacts
-Before running the build, clean all old APK files from `build\app\outputs\flutter-apk` to prevent confusion:
+### 2. Generate Detailed Changelog / Release Notes
+Always summarize what was added, changed, or fixed into clear bullet points:
+- 🚀 **New Features**: (e.g., In-app update notifications, player speed controls)
+- 🐛 **Bug Fixes**: (e.g., Resolved subtitle decryption, domain updates to `kisskh.id`)
+- ⚡ **Improvements**: (e.g., Cleaner repository, optimized APK size)
+
+### 3. Automated Cloud Release via GitHub Actions (Recommended)
+Commit changes, tag with the version and release notes, and push to GitHub:
 ```powershell
-Remove-Item "build\app\outputs\flutter-apk\*.apk", "build\app\outputs\flutter-apk\*.sha1" -Force -ErrorAction SilentlyContinue
+git add .
+git commit -m "Release v<VERSION>: <SHORT_SUMMARY>"
+git tag -a v<VERSION> -m "<BULLET_POINT_RELEASE_NOTES>"
+git push origin main
+git push origin v<VERSION>
 ```
+*GitHub Actions (`.github/workflows/release.yml`) will automatically build the ARM64 APK and publish the GitHub Release with the changelog attached!*
 
----
-
-## 🛠️ Build Command
-
+### 4. Local Build (If Local APK Needed Immediately)
+Before running a local build, clean out old APKs to prevent clutter:
 ```powershell
+# 1. Clean stale artifacts
+if (Test-Path "build\app\outputs\flutter-apk") {
+    Remove-Item "build\app\outputs\flutter-apk\*.apk", "build\app\outputs\flutter-apk\*.sha1" -Force -ErrorAction SilentlyContinue
+}
+
+# 2. Compile ARM64
 flutter build apk --flavor production --dart-define=BUILD_PROFILE=production --target-platform android-arm64
+
+# 3. Copy clean release binary
+Copy-Item "build\app\outputs\flutter-apk\app-production-release.apk" "build\app\outputs\flutter-apk\Dramwhat.apk" -Force
 ```
-
----
-
-## 📦 Single Official Release Artifact
-
-After compilation, maintain **only one clear release file**:
-1. Copy the output to `Dramwhat.apk`:
-   ```powershell
-   Copy-Item "build\app\outputs\flutter-apk\app-production-release.apk" "build\app\outputs\flutter-apk\Dramwhat.apk" -Force
-   ```
-2. The user will find their ready-to-use APK at: `build\app\outputs\flutter-apk\Dramwhat.apk`.
-
----
-
-## 🌐 GitHub Release Syncing
-
-1. Ensure the latest commits are pushed:
-   ```powershell
-   git add .
-   git commit -m "Bump version to v<VERSION> and update release artifacts"
-   git push origin main
-   ```
-2. Attach `Dramwhat.apk` to the GitHub release at:
-   - `https://github.com/MrReleas3/Dramawhat/releases/new` with tag `v<VERSION>`.
