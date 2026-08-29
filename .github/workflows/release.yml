@@ -43,10 +43,18 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Analyze Code
+        run: flutter analyze --no-fatal-infos
+
       - name: Build Production ARM64 APK
         run: |
           flutter build apk --flavor production --dart-define=BUILD_PROFILE=production --target-platform android-arm64
-          cp build/app/outputs/flutter-apk/app-production-release.apk build/app/outputs/flutter-apk/Dramwhat.apk
+          if [ -f build/app/outputs/flutter-apk/app-production-release.apk ]; then
+            cp build/app/outputs/flutter-apk/app-production-release.apk build/app/outputs/flutter-apk/Dramwhat.apk
+          elif [ -f build/app/outputs/apk/production/release/app-production-release.apk ]; then
+            mkdir -p build/app/outputs/flutter-apk
+            cp build/app/outputs/apk/production/release/app-production-release.apk build/app/outputs/flutter-apk/Dramwhat.apk
+          fi
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

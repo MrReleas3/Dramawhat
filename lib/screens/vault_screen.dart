@@ -174,47 +174,6 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 
-  void _showNsfwConfirmation(
-    BuildContext context,
-    SettingsController settings,
-  ) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF151520),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Iconsax.warning_2, color: Colors.orange),
-            SizedBox(width: 10),
-            Text('Age Confirmation', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: const Text(
-          'This will show adult-themed content in search results.\n\nAre you 18 years or older?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
-          ),
-          TextButton(
-            onPressed: () {
-              settings.confirmNsfw();
-              settings.toggleShowNsfw();
-              Navigator.pop(ctx);
-            },
-            child: const Text(
-              'I am 18+',
-              style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -256,77 +215,6 @@ class _VaultScreenState extends State<VaultScreen> {
       ),
       body: Column(
         children: [
-          // Show NSFW Content toggle (available in Vault for all builds)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Obx(() {
-              return Material(
-                color: const Color(0xFF151520),
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    if (!settings.showNsfw.value && !settings.hasConfirmedNsfw.value) {
-                      _showNsfwConfirmation(context, settings);
-                    } else {
-                      settings.toggleShowNsfw();
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Iconsax.shield_search, size: 20, color: AppTheme.primary),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Show NSFW Content',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Allow adult-themed content in search results',
-                                style: TextStyle(fontSize: 12, color: Colors.white54),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch.adaptive(
-                          value: settings.showNsfw.value,
-                          activeTrackColor: AppTheme.primary,
-                          onChanged: (val) {
-                            if (val && !settings.hasConfirmedNsfw.value) {
-                              _showNsfwConfirmation(context, settings);
-                            } else {
-                              settings.toggleShowNsfw();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
 
           Expanded(
             child: entries.isEmpty

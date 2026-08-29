@@ -57,7 +57,6 @@ class VideoPlayerSection extends StatefulWidget {
 
   // ── Source / server ─────────────────────────────────────────────────────────
   final VoidCallback? onServersTapped;
-  final VoidCallback? onSourceTapped;
 
   // ── Skip times (unused in KissKH, kept for interface compat) ────────────────
   final List<Map<String, dynamic>> skipTimes;
@@ -251,7 +250,6 @@ class _VideoPlayerSectionState extends State<VideoPlayerSection> {
             onServersTapped: widget.onServersTapped,
             onSubtitleTapped: widget.onSubtitleTapped,
             activeSubtitleLabel: widget.activeSubtitleLabel,
-            onSourceTapped: widget.onSourceTapped,
             subtitleStyleNotifier: widget.subtitleStyleNotifier,
             isFullscreen: widget.isFullscreen,
             onFullscreenTapped: widget.onFullscreenTapped,

@@ -30,7 +30,6 @@ class CustomVideoControls extends StatefulWidget {
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPreviousEpisode;
   final VoidCallback? onSubtitleTapped;
-  final VoidCallback? onSourceTapped;
   final String scaleModeLabel;
   final VoidCallback onToggleScaleMode;
   // Notifier so WatchScreen can apply subtitle style to SubtitleViewConfiguration
@@ -41,6 +40,7 @@ class CustomVideoControls extends StatefulWidget {
   final VoidCallback? onRetry;
   final bool hasSoftsubs;
   final Function(bool enabled)? onToggleCC;
+  final List<dynamic> skipTimes;
   final String? activeSubtitleLabel;
   final bool isLandscape;
   final VoidCallback? onOrientationToggle;
@@ -64,7 +64,6 @@ class CustomVideoControls extends StatefulWidget {
     this.onNextEpisode,
     this.onPreviousEpisode,
     this.onSubtitleTapped,
-    this.onSourceTapped,
     required this.scaleModeLabel,
     required this.onToggleScaleMode,
     this.subtitleStyleNotifier,
@@ -1217,20 +1216,6 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
                   onPressed: () {
                     HapticFeedback.selectionClick();
                     widget.onOrientationToggle?.call();
-                  },
-                ),
-              // Source Switcher button (antenna icon)
-              if (widget.onSourceTapped != null)
-                IconButton(
-                  icon: const Icon(
-                    Icons.swap_horiz_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  tooltip: 'Switch Source',
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    widget.onSourceTapped?.call();
                   },
                 ),
 

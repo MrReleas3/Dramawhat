@@ -8,7 +8,6 @@ import 'package:iconsax/iconsax.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vad_app/theme/app_theme.dart';
-import 'package:vad_app/widgets/snackbar_service.dart';
 
 class AppReleaseInfo {
   final String tagName;
