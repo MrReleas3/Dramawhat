@@ -62,8 +62,6 @@ class VideoPlayerSection extends StatefulWidget {
   // ── Skip times (unused in KissKH, kept for interface compat) ────────────────
   final List<Map<String, dynamic>> skipTimes;
 
-  final bool useAnifyMeta;
-  final Map<int, Map<String, dynamic>> anifyMetas;
   final ValueChanged<bool>? onLockChanged;
   final VoidCallback? onDownloadTapped;
 
@@ -97,10 +95,7 @@ class VideoPlayerSection extends StatefulWidget {
     this.onPreviousEpisode,
     required this.onBack,
     this.onServersTapped,
-    this.onSourceTapped,
     this.skipTimes = const [],
-    required this.useAnifyMeta,
-    required this.anifyMetas,
     this.onLockChanged,
     this.onDownloadTapped,
   });
@@ -267,8 +262,6 @@ class _VideoPlayerSectionState extends State<VideoPlayerSection> {
             hasSoftsubs: widget.hasSoftsubs,
             onToggleCC: widget.onToggleCC,
             skipTimes: widget.skipTimes,
-            useAnifyMeta: widget.useAnifyMeta,
-            anifyMetas: widget.anifyMetas,
             onLockChanged: widget.onLockChanged,
             onDownloadTapped: widget.onDownloadTapped,
           ),

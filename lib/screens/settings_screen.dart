@@ -346,157 +346,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                _bundleDivider(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Iconsax.video_circle, size: 18, color: AppTheme.primary),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Default Episode Source',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  'Preferred source for listing episodes',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppTheme.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 48),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: settings.animeEpisodeSource.value,
-                              dropdownColor: AppTheme.surfaceLight,
-                              borderRadius: BorderRadius.circular(12),
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.textMuted),
-                              isExpanded: true,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'anilist',
-                                  child: Text('Embed Source'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'extension',
-                                  child: Text('Extension Scraped'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'direct',
-                                  child: Text('Direct Source'),
-                                ),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  settings.setAnimeEpisodeSource(val);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
 
             const SizedBox(height: 12),
 
-            // ── PLAYER (bundled: 2 toggles) ──────────────────────────
+            // ── PLAYER ───────────────────────────────────────────────────
             _collapsibleSection(
               key: 'Player',
               label: 'PLAYER',
               icon: Iconsax.video_play,
               children: [
-                // Experimental notice
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Iconsax.warning_2, size: 15, color: Colors.amber.shade400),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Experimental — These features are currently not working reliably and may have no effect.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.amber.shade300,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _bundleTile(
-                  icon: Iconsax.forward,
-                  title: 'Show OP/ED Skip Button',
-                  subtitle: 'Shows a skip button when AniSkip or IntroDB data is available',
-                  trailing: Switch.adaptive(
-                    value: settings.showSkipButton.value,
-                    onChanged: (_) => settings.toggleShowSkipButton(),
-                    activeTrackColor: AppTheme.primary,
-                  ),
-                ),
-                _bundleDivider(),
-                _bundleTile(
-                  icon: Iconsax.next,
-                  title: 'Auto-Skip OP/ED',
-                  subtitle: 'Auto-seeks past intros/outros when skip data is available',
-                  trailing: Switch.adaptive(
-                    value: settings.autoSkipOpEd.value,
-                    onChanged: (_) => settings.toggleAutoSkipOpEd(),
-                    activeTrackColor: AppTheme.primary,
-                  ),
-                ),
-                _bundleDivider(),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Column(
@@ -605,11 +465,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 12),
 
-            // ── EXTENSIONS (bundled: 2 toggles) ──────────────────────────
+            // ── DATA MANAGEMENT ──────────────────────────────────────────
             _collapsibleSection(
-              key: 'Extensions',
-              label: 'EXTENSIONS',
-              icon: Iconsax.code_1,
+              key: 'DataManagement',
+              label: 'DATA MANAGEMENT',
+              icon: Iconsax.folder_2,
               children: [
                 _bundleTile(
                   icon: Iconsax.export_2,
@@ -963,24 +823,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
               _buildModernPrivacyCard(
                 title: 'Data Collection & Security',
-                description: 'Nuord does NOT collect, harvest, or transmit any personal data, usage metrics, or watch habits. All information remains on your local hardware.',
+                description: 'Dramawhat does NOT collect, harvest, or transmit any personal data, usage metrics, or watch habits. All information remains on your local hardware.',
                 icon: Iconsax.lock,
               ),
               _buildModernPrivacyCard(
                 title: 'Offline-First Philosophy',
-                description: 'Your settings, watch history, libraries, passwords, and extension configurations are cached using secure local key-value stores. There are no backend database servers managing your personal files.',
+                description: 'Your settings, watch history, bookmarks, and libraries are cached using secure local key-value stores. There are no backend tracking servers managing your personal files.',
                 icon: Iconsax.folder_connection,
               ),
               _buildModernPrivacyCard(
                 title: 'Sources & Disclaimers',
-                description: 'This application is purely a client-side media container and extension bridge. Nuord does not host, index, store, or distribute any media files or video streams. All stream indexing is performed on-demand via the user-configured third-party extensions.',
+                description: 'This application is purely a client-side media player and browser interface for public Asian drama streams. Dramawhat does not host, store, or distribute any media files or video streams.',
                 icon: Iconsax.document_text,
               ),
               const SizedBox(height: 16),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  'By installing external extension packages, you understand that those services operate under their own terms of service and privacy policies.',
+                  'Video streaming performance depends on your network connection and the public content hosts.',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textMuted,
@@ -1095,7 +955,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  'Nuord is built on the shoulders of giants. I believe in transparency and want to express my deepest gratitude to the projects that inspired and powered this application. This is not entirely my own code — it leverages standard open-source concepts, scrapers, and extension bridges.',
+                  'Dramawhat is built on the shoulders of giants. We express our deepest gratitude to the open-source projects that inspired and power this application.',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppTheme.textMuted,
@@ -1105,16 +965,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 24),
               _buildCreditCard(
-                project: 'AnymeX',
-                type: 'UI & UX Inspiration',
-                description: 'The foundation for the beautiful dark theme layouts, anime tracking integrations, and seamless user experience schemes.',
-                url: 'https://github.com/RyanYuuki/AnymeX',
-              ),
-              _buildCreditCard(
-                project: 'Mangayomi',
-                type: 'Dart Extension Architecture',
-                description: 'Provided inspiration for parsing and integrating local JavaScript-based scraper runtimes in Flutter environments.',
-                url: 'https://github.com/kodjodevf/mangayomi',
+                project: 'KissKH',
+                type: 'Drama Content & API',
+                description: 'Provides high-quality Asian drama metadata, episode indexes, multi-language subtitle tracks, and video streams.',
               ),
               _buildCreditCard(
                 project: 'Flutter & Dart SDK',

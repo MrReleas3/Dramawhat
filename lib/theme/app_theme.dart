@@ -27,9 +27,7 @@ class AppTheme {
     infoSnackBar(message, title: title);
   }
 
-  /// Maps an AniList media-list status string to a semantic colour.
-  ///
-  /// This was previously duplicated in WatchScreen and ProfileScreen.
+  /// Maps a media-list status string to a semantic colour.
   static Color statusColor(String? status) {
     switch (status) {
       case 'WATCHING':

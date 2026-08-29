@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/services/notification_service.dart';
 import 'package:vad_app/theme/app_theme.dart';
 import 'package:vad_app/screens/downloads_screen.dart';
@@ -104,57 +103,6 @@ class _TestingScreenState extends State<TestingScreen> {
     );
   }
 
-  void _showNsfwOnlyConfirmation(
-    BuildContext context,
-    SettingsController settings,
-  ) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF151520),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Iconsax.warning_2, color: Colors.orange),
-            SizedBox(width: 10),
-            Text(
-              '18+ Mode',
-              style: TextStyle(color: Colors.orange, fontSize: 18),
-            ),
-          ],
-        ),
-        content: const Text(
-          'NSFW Only Mode will replace ALL content in the app with exclusively 18+ material.\n\nThis includes the home feed, browse, and search results.\n\nAre you 18 years or older?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white38),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              settings.confirmNsfw();
-              settings.toggleNsfwOnlyMode();
-              settings.mainRefreshTicker.value++;
-              Navigator.pop(ctx);
-            },
-            child: const Text(
-              'I am 18+',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _settingTile({
     required IconData icon,

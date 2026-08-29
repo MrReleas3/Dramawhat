@@ -18,8 +18,6 @@ class _K {
   static const dataCacheEnabled        = 'dataCacheEnabled';
   static const enableReleaseNotif      = 'enableReleaseNotifications';
   static const moreAdvancedFilter      = 'moreAdvancedFilter';
-  static const showSkipButton          = 'showSkipButton';
-  static const autoSkipOpEd            = 'autoSkipOpEd';
   static const pauseHistory            = 'pauseHistory';
   static const subtitleFontSize        = 'subtitleFontSize';
   static const subtitleColor           = 'subtitleColor';
@@ -51,24 +49,8 @@ class SettingsController extends GetxController {
   final dataCacheEnabled          = true.obs;
   final enableReleaseNotifications = false.obs;
   final moreAdvancedFilter        = false.obs;
-  final showSkipButton            = true.obs;
-  final autoSkipOpEd              = false.obs;
   final pauseHistory              = false.obs;
   final bufferMode                = 'balanced'.obs;
-  final showNsfw                  = false.obs;
-  final hasConfirmedNsfw          = false.obs;
-  final showExtensions            = false.obs;
-  final useAnifyTitles            = false.obs;
-  final nsfwOnlyMode              = false.obs;
-  final isFetchingTags            = false.obs;
-  void toggleShowNsfw() {}
-  void confirmNsfw() {}
-  void toggleShowExtensions() {}
-  void toggleAnifyTitles() {}
-  void toggleNsfwOnlyMode() {}
-  Future<void> fetchAndUpdateAnilistTags() async {}
-  final animeEpisodeSource        = 'kisskh'.obs;
-  void setAnimeEpisodeSource(String val) {}
 
   // ── KissKH-specific settings ─────────────────────────────────────────────
   final preferredSubLanguage      = 'English'.obs;
@@ -82,7 +64,7 @@ class SettingsController extends GetxController {
   final mainRefreshTicker = 0.obs;
 
   // ── App version ───────────────────────────────────────────────────────────
-  final appVersion = '0.5.2'.obs;
+  final appVersion = '0.5.3'.obs;
 
   // ── Session-only flags (not persisted) ───────────────────────────────────
   bool testingUnlocked = false;
@@ -106,8 +88,6 @@ class SettingsController extends GetxController {
     dataCacheEnabled.value           = _box.read(_K.dataCacheEnabled)    ?? true;
     enableReleaseNotifications.value = _box.read(_K.enableReleaseNotif)  ?? false;
     moreAdvancedFilter.value         = _box.read(_K.moreAdvancedFilter)  ?? false;
-    showSkipButton.value             = _box.read(_K.showSkipButton)     ?? true;
-    autoSkipOpEd.value               = _box.read(_K.autoSkipOpEd)       ?? false;
     pauseHistory.value               = _box.read(_K.pauseHistory)       ?? false;
     bufferMode.value                 = _box.read(_K.bufferMode)         ?? 'balanced';
     subtitleFontSize.value           = _box.read(_K.subtitleFontSize)   ?? 22.0;
@@ -175,16 +155,6 @@ class SettingsController extends GetxController {
     _box.write(_K.moreAdvancedFilter, moreAdvancedFilter.value);
   }
 
-  void toggleShowSkipButton() {
-    showSkipButton.toggle();
-    _box.write(_K.showSkipButton, showSkipButton.value);
-  }
-
-  void toggleAutoSkipOpEd() {
-    autoSkipOpEd.toggle();
-    _box.write(_K.autoSkipOpEd, autoSkipOpEd.value);
-  }
-
   void togglePauseHistory() {
     pauseHistory.toggle();
     _box.write(_K.pauseHistory, pauseHistory.value);
@@ -220,7 +190,7 @@ class SettingsController extends GetxController {
   void setSubtitleBottomMargin(double v) { subtitleBottomMargin.value = v; _box.write(_K.subtitleBottomMargin, v); }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Title helpers — simplified for KissKH (flat title string, not AniList map)
+  // Title helpers
   // ─────────────────────────────────────────────────────────────────────────
   String getAnimeTitle(dynamic title) {
     if (title == null) return 'Unknown Title';
@@ -383,7 +353,7 @@ class SettingsController extends GetxController {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ── Local-only auth/data helpers (no AniList) ─────────────────────────────
+  // ── Local-only data helpers ───────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Wipes all local user data.

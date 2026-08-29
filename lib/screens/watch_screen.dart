@@ -701,9 +701,6 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           Navigator.pop(context);
         }
       },
-      skipTimes: const [],
-      useAnifyMeta: false,
-      anifyMetas: const {},
     );
   }
 

@@ -41,9 +41,6 @@ class CustomVideoControls extends StatefulWidget {
   final VoidCallback? onRetry;
   final bool hasSoftsubs;
   final Function(bool enabled)? onToggleCC;
-  final List<dynamic> skipTimes;
-  final bool useAnifyMeta;
-  final Map<int, dynamic> anifyMetas;
   final String? activeSubtitleLabel;
   final bool isLandscape;
   final VoidCallback? onOrientationToggle;
@@ -77,8 +74,6 @@ class CustomVideoControls extends StatefulWidget {
     this.hasSoftsubs = false,
     this.onToggleCC,
     this.skipTimes = const [],
-    required this.useAnifyMeta,
-    required this.anifyMetas,
     this.activeSubtitleLabel,
     required this.isLandscape,
     this.onOrientationToggle,
@@ -268,14 +263,6 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
         );
         if (skip != _currentSkipN.value) {
           _currentSkipN.value = skip;
-        }
-
-        if (skip != null && skip != _lastAutoSkipped) {
-          final settings = Get.find<SettingsController>();
-          if (settings.autoSkipOpEd.value) {
-            _lastAutoSkipped = skip;
-            widget.player.seek(skip.endTime);
-          }
         }
       }
     });
@@ -1087,11 +1074,7 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
                 child: ValueListenableBuilder<dynamic>(
                   valueListenable: _currentSkipN,
                   builder: (context, currentSkip, _) {
-                    final settings = Get.find<SettingsController>();
-                    if (currentSkip == null ||
-                        !settings.showSkipButton.value ||
-                        settings.autoSkipOpEd.value ||
-                        _isLocked) {
+                    if (currentSkip == null || _isLocked) {
                       return const SizedBox.shrink();
                     }
                     return GestureDetector(
@@ -1760,15 +1743,8 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
     final ep = widget.currentEpisodeIndex < widget.episodes.length
         ? widget.episodes[widget.currentEpisodeIndex]
         : null;
-    
-    final episodeNumber = widget.currentEpisodeIndex + 1;
-    final meta = (widget.useAnifyMeta && widget.anifyMetas.isNotEmpty)
-        ? widget.anifyMetas[episodeNumber]
-        : null;
         
-    final thumb = meta?.thumbnail?.isNotEmpty == true
-        ? meta!.thumbnail!
-        : ep?.thumbnail;
+    final thumb = ep?.thumbnail;
 
     if (thumb != null && thumb.isNotEmpty) {
       return CachedNetworkImage(
@@ -1873,22 +1849,11 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
         : '${index + 1}';
     final formattedDate = _formatUploadDate(ep.dateUpload);
 
-    final episodeNumber = index + 1;
-    final meta = (widget.useAnifyMeta && widget.anifyMetas.isNotEmpty)
-        ? widget.anifyMetas[episodeNumber]
-        : null;
-
-    final epName = meta?.title?.isNotEmpty == true
-        ? meta!.title!
-        : (ep.name?.isNotEmpty == true
-            ? ep.name!
-            : 'Episode $displayEpisodeNumber');
-    final description = meta?.description?.isNotEmpty == true
-        ? meta!.description!
-        : ep.description;
-    final thumbnail = meta?.thumbnail?.isNotEmpty == true
-        ? meta!.thumbnail!
-        : ep.thumbnail;
+    final epName = ep.name?.isNotEmpty == true
+        ? ep.name!
+        : 'Episode $displayEpisodeNumber';
+    final description = ep.description;
+    final thumbnail = ep.thumbnail;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
