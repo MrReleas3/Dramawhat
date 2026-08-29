@@ -108,11 +108,17 @@ class UpdateCheckerService extends GetxService {
             }
           }
 
+          String rawBody = (data['body'] ?? '').toString().trim();
+          String releaseBody = rawBody;
+          if (releaseBody.isEmpty || releaseBody.startsWith('**Full Changelog**')) {
+            releaseBody = "• Removed obsolete third-party integrations and unneeded dependencies.\n• Modernized Settings and Data Management.\n• Performance optimizations and bug fixes.";
+          }
+
           release = AppReleaseInfo(
             tagName: tagName,
             cleanVersion: cleanTag,
             title: (data['name'] ?? tagName).toString(),
-            body: (data['body'] ?? '').toString(),
+            body: releaseBody,
             htmlUrl: (data['html_url'] ?? "https://github.com/$repoOwner/$repoName/releases").toString(),
             apkDownloadUrl: apkUrl ?? "https://github.com/$repoOwner/$repoName/releases/download/$tagName/Dramwhat.apk",
             apkFileName: apkName ?? "Dramwhat.apk",
@@ -149,7 +155,7 @@ class UpdateCheckerService extends GetxService {
               tagName: tagName,
               cleanVersion: cleanTag,
               title: "Dramawhat $tagName",
-              body: "Fixed streaming links & performance improvements.",
+              body: "• Removed obsolete third-party integrations and unneeded dependencies.\n• Modernized Settings and Data Management.\n• Performance optimizations and bug fixes.",
               htmlUrl: htmlUrl,
               apkDownloadUrl: apkUrl,
               apkFileName: "Dramwhat.apk",

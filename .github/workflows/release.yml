@@ -57,13 +57,27 @@ jobs:
             cp build/app/outputs/apk/production/release/app-production-release.apk build/app/outputs/flutter-apk/Dramwhat.apk
           fi
 
+      - name: Extract Release Notes
+        id: release_notes
+        run: |
+          NOTES=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+          if [ -z "$NOTES" ]; then
+            NOTES="${{ inputs.release_notes }}"
+          fi
+          if [ -z "$NOTES" ]; then
+            NOTES="Release ${{ github.ref_name }}: Clean up obsolete integrations, modernize settings, and optimize performance."
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Dramawhat ${{ github.ref_name || inputs.version }}"
           tag_name: ${{ github.ref_name || inputs.version }}
-          body: ${{ inputs.release_notes }}
-          generate_release_notes: true
+          body: ${{ steps.release_notes.outputs.body }}
+          generate_release_notes: false
           files: |
             build/app/outputs/flutter-apk/Dramwhat.apk
         env:
