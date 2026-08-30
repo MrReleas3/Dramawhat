@@ -8,7 +8,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/models/media.dart';
-import 'package:vad_app/services/kisskh_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/theme/app_theme.dart';
 import 'package:vad_app/screens/watch_screen.dart';
 import 'package:vad_app/services/scroll_service.dart';
@@ -16,12 +16,14 @@ import 'package:vad_app/widgets/advanced_filter_sheet.dart';
 
 class BrowseScreen extends StatefulWidget {
   final String? initialSearch;
+  final Map<String, String>? initialFilters;
   final String? initialOrder;
   final String? initialCountry;
 
   const BrowseScreen({
     super.key,
     this.initialSearch,
+    this.initialFilters,
     this.initialOrder,
     this.initialCountry,
   });
@@ -43,17 +45,11 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   final settings = Get.find<SettingsController>();
   final _storage = GetStorage();
-  final kisskhService = KissKHService();
+  SourceProvider get sourceProvider => SourceRegistry().active;
   String _layoutMode = 'grid'; // 'grid', 'compact', 'large'
 
-  // KissKH filters
-  Map<String, String> activeFilters = {
-    'type': '0',
-    'sub': '0',
-    'country': '0',
-    'status': '0',
-    'order': '1', // Most Popular
-  };
+  // Source-aware active filters
+  Map<String, String> activeFilters = {};
 
   @override
   void initState() {
@@ -64,6 +60,15 @@ class _BrowseScreenState extends State<BrowseScreen> {
     });
     ScrollService().register(1, _scrollController);
 
+    // Initialize active filters with source defaults
+    for (final group in sourceProvider.getFilters()) {
+      activeFilters[group.type] = group.selectedValue;
+    }
+
+    // Merge passed initial filters
+    if (widget.initialFilters != null) {
+      activeFilters.addAll(widget.initialFilters!);
+    }
     if (widget.initialOrder != null) {
       activeFilters['order'] = widget.initialOrder!;
     }
@@ -116,14 +121,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
     });
     try {
       final queryText = _searchController.text.trim();
-      final items = await kisskhService.search(
+      final items = await sourceProvider.search(
         query: queryText,
         page: page,
-        type: activeFilters['type'] ?? '0',
-        sub: activeFilters['sub'] ?? '0',
-        country: activeFilters['country'] ?? '0',
-        status: activeFilters['status'] ?? '0',
-        order: activeFilters['order'] ?? '1',
+        filters: activeFilters,
       );
 
       if (mounted) {
@@ -175,12 +176,13 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   bool get _isFiltered {
-    return activeFilters['type'] != '0' ||
-        activeFilters['sub'] != '0' ||
-        activeFilters['country'] != '0' ||
-        activeFilters['status'] != '0' ||
-        activeFilters['order'] != '1' ||
-        _searchController.text.trim().isNotEmpty;
+    if (_searchController.text.trim().isNotEmpty) return true;
+    for (final group in sourceProvider.getFilters()) {
+      final defaultVal = group.options.isNotEmpty ? group.options.first.value : '';
+      final currentVal = activeFilters[group.type] ?? defaultVal;
+      if (currentVal != defaultVal) return true;
+    }
+    return false;
   }
 
   Widget _buildLayoutToggles() {
@@ -232,89 +234,30 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Widget _buildActiveFilterChips() {
     final chips = <Widget>[];
+    final filterGroups = sourceProvider.getFilters();
 
-    final countryVal = activeFilters['country'] ?? '0';
-    if (countryVal != '0') {
-      final label = switch (countryVal) {
-        '2' => 'South Korea',
-        '1' => 'China',
-        '3' => 'Japan',
-        '7' => 'Taiwan',
-        '4' => 'Hong Kong',
-        '5' => 'Thailand',
-        '8' => 'Philippines',
-        '6' => 'Hollywood',
-        _ => 'Country',
-      };
-      chips.add(_buildFilterChip(
-        label: label,
-        onRemove: () {
-          setState(() {
-            activeFilters['country'] = '0';
-            page = 1;
-            results.clear();
-          });
-          _search();
-        },
-      ));
-    }
+    for (final group in filterGroups) {
+      final defaultVal = group.options.isNotEmpty ? group.options.first.value : '';
+      final currentVal = activeFilters[group.type] ?? defaultVal;
 
-    final orderVal = activeFilters['order'] ?? '1';
-    if (orderVal != '1') {
-      final label = switch (orderVal) {
-        '2' => 'Latest Updated',
-        '3' => 'Highest Rated',
-        _ => 'Popularity',
-      };
-      chips.add(_buildFilterChip(
-        label: label,
-        onRemove: () {
-          setState(() {
-            activeFilters['order'] = '1';
-            page = 1;
-            results.clear();
-          });
-          _search();
-        },
-      ));
-    }
+      if (currentVal != defaultVal && currentVal.isNotEmpty) {
+        final option = group.options.firstWhere(
+          (o) => o.value == currentVal,
+          orElse: () => FilterOption(name: currentVal, value: currentVal),
+        );
 
-    final statusVal = activeFilters['status'] ?? '0';
-    if (statusVal != '0') {
-      final label = statusVal == '2' ? 'Completed' : 'Ongoing';
-      chips.add(_buildFilterChip(
-        label: label,
-        onRemove: () {
-          setState(() {
-            activeFilters['status'] = '0';
-            page = 1;
-            results.clear();
-          });
-          _search();
-        },
-      ));
-    }
-
-    final typeVal = activeFilters['type'] ?? '0';
-    if (typeVal != '0') {
-      final label = switch (typeVal) {
-        '1' => 'TVSeries',
-        '2' => 'Movie',
-        '3' => 'Anime',
-        '4' => 'Hollywood',
-        _ => 'Type',
-      };
-      chips.add(_buildFilterChip(
-        label: label,
-        onRemove: () {
-          setState(() {
-            activeFilters['type'] = '0';
-            page = 1;
-            results.clear();
-          });
-          _search();
-        },
-      ));
+        chips.add(_buildFilterChip(
+          label: '${group.name}: ${option.name}',
+          onRemove: () {
+            setState(() {
+              activeFilters[group.type] = defaultVal;
+              page = 1;
+              results.clear();
+            });
+            _search();
+          },
+        ));
+      }
     }
 
     if (chips.isEmpty) return const SizedBox.shrink();

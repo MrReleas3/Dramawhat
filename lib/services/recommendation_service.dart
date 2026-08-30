@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
 import '../models/media.dart';
-import 'kisskh_service.dart';
+import 'sources/source_registry.dart';
 
 class RecommendationService {
   static final RecommendationService _instance = RecommendationService._internal();
@@ -10,7 +10,7 @@ class RecommendationService {
 
   final _box = GetStorage();
   static const String _storageKey = 'recommendations_cache';
-  final kisskhService = KissKHService();
+  SourceProvider get _sourceProvider => SourceRegistry().active;
 
   /// Clears all persisted recommendation cache from storage
   Future<void> clearCache() async {
@@ -50,16 +50,18 @@ class RecommendationService {
     final countryCode = _getCountryCode(currentShow.country);
     final typeCode = _getTypeCode(currentShow.mediaType);
 
-    final fetched = await kisskhService.search(
+    final fetched = await _sourceProvider.search(
       query: '',
       page: 1,
-      type: typeCode,
-      country: countryCode,
+      filters: {
+        'type': typeCode,
+        'country': countryCode,
+      },
     );
     candidatePool.addAll(fetched);
 
-    // Complement with global popular and latest items from KissKH Service candidate cache
-    final globalCache = kisskhService.getCachedPool();
+    // Complement with global popular and latest items from source candidate cache
+    final globalCache = _sourceProvider.getCachedPool();
     candidatePool.addAll(globalCache);
 
     // Deduplicate candidate pool by ID

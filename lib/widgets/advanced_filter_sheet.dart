@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:vad_app/theme/app_theme.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 
 class AdvancedFilterSheet extends StatefulWidget {
   final Map<String, String> initialFilters;
@@ -18,80 +19,40 @@ class AdvancedFilterSheet extends StatefulWidget {
 }
 
 class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
-  late String selectedType;
-  late String selectedSub;
-  late String selectedCountry;
-  late String selectedStatus;
-  late String selectedOrder;
-
-  // Exact KissKH Website filter mappings verified against kisskh.nl/Explore:
-  // Type: 0=All, 1=TVSeries, 2=Movie, 3=Anime, 4=Hollywood
-  static const typeOptions = {
-    '0': 'All',
-    '1': 'TVSeries',
-    '2': 'Movie',
-    '3': 'Anime',
-    '4': 'Hollywood',
-  };
-
-  // Audio/Sub: 0=All Subtitles, 1=Subtitled, 2=Dubbed, 3=RAW
-  static const subOptions = {
-    '0': 'All Subtitles',
-    '1': 'Subtitled (SUB)',
-    '2': 'Dubbed (DUB)',
-    '3': 'RAW',
-  };
-
-  // Regions: 0=All Regions, 2=South Korea, 1=Chinese, 6=United States, 5=Thailand, 8=Philippine, 3=Japanese, 4=Hong Kong, 7=Taiwan
-  static const countryOptions = {
-    '0': 'All Regions',
-    '2': 'South Korea',
-    '1': 'Chinese',
-    '6': 'United States',
-    '5': 'Thailand',
-    '8': 'Philippine',
-    '3': 'Japanese',
-    '4': 'Hong Kong',
-    '7': 'Taiwan',
-  };
-
-  // Status: 0=All, 1=Ongoing, 2=Completed, 3=Upcoming
-  static const statusOptions = {
-    '0': 'All',
-    '1': 'Ongoing',
-    '2': 'Completed',
-    '3': 'Upcoming',
-  };
-
-  // Sort Order: 1=Popular, 2=Last Update, 3=Release Date
-  static const orderOptions = {
-    '1': 'Popular',
-    '2': 'Last Update',
-    '3': 'Release Date',
-  };
+  late List<FilterGroup> _filterGroups;
+  late Map<String, String> _selectedValues;
 
   @override
   void initState() {
     super.initState();
-    selectedType = widget.initialFilters['type'] ?? '0';
-    selectedSub = widget.initialFilters['sub'] ?? '0';
-    selectedCountry = widget.initialFilters['country'] ?? '0';
-    selectedStatus = widget.initialFilters['status'] ?? '0';
-    selectedOrder = widget.initialFilters['order'] ?? '1';
+    // Fetch dynamic filters from the active source
+    _filterGroups = SourceRegistry().active.getFilters();
+    _selectedValues = Map<String, String>.from(widget.initialFilters);
+
+    // Initialize selected values from the filter groups' defaults
+    // if not already set from initialFilters
+    for (final group in _filterGroups) {
+      if (!_selectedValues.containsKey(group.type)) {
+        _selectedValues[group.type] = group.selectedValue;
+      }
+    }
   }
 
   void _reset() {
     setState(() {
-      selectedType = '0';
-      selectedSub = '0';
-      selectedCountry = '0';
-      selectedStatus = '0';
-      selectedOrder = '1';
+      _selectedValues.clear();
+      for (final group in _filterGroups) {
+        // Reset to first option (usually "All" or default)
+        _selectedValues[group.type] =
+            group.options.isNotEmpty ? group.options.first.value : '';
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final sourceName = SourceRegistry().active.name;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: BoxDecoration(
@@ -117,13 +78,13 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Iconsax.setting_5, color: AppTheme.primary, size: 20),
-                    SizedBox(width: 8),
+                    const Icon(Iconsax.setting_5, color: AppTheme.primary, size: 20),
+                    const SizedBox(width: 8),
                     Text(
-                      'Filter Dramas & Shows',
-                      style: TextStyle(
+                      'Filter — $sourceName',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textWhite,
@@ -142,45 +103,26 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
             ),
           ),
           const Divider(color: Colors.white10, height: 1),
-          // Filter options body
+          // Dynamically built filter options
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20),
-              children: [
-                // Type
-                _buildSectionTitle('Type'),
-                _buildChipSelector(typeOptions, selectedType, (val) {
-                  setState(() => selectedType = val);
-                }),
-                const SizedBox(height: 20),
-
-                // Audio / Subtitles
-                _buildSectionTitle('Subtitles & Audio'),
-                _buildChipSelector(subOptions, selectedSub, (val) {
-                  setState(() => selectedSub = val);
-                }),
-                const SizedBox(height: 20),
-
-                // Country / Region
-                _buildSectionTitle('Region / Country'),
-                _buildChipSelector(countryOptions, selectedCountry, (val) {
-                  setState(() => selectedCountry = val);
-                }),
-                const SizedBox(height: 20),
-
-                // Status
-                _buildSectionTitle('Status'),
-                _buildChipSelector(statusOptions, selectedStatus, (val) {
-                  setState(() => selectedStatus = val);
-                }),
-                const SizedBox(height: 20),
-
-                // Sort Order
-                _buildSectionTitle('Sort Order'),
-                _buildChipSelector(orderOptions, selectedOrder, (val) {
-                  setState(() => selectedOrder = val);
-                }),
-              ],
+              children: _filterGroups.map((group) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle(group.name),
+                    _buildChipSelector(
+                      group.options,
+                      _selectedValues[group.type] ?? group.selectedValue,
+                      (val) {
+                        setState(() => _selectedValues[group.type] = val);
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              }).toList(),
             ),
           ),
           // Apply button footer
@@ -191,13 +133,7 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  widget.onApply({
-                    'type': selectedType,
-                    'sub': selectedSub,
-                    'country': selectedCountry,
-                    'status': selectedStatus,
-                    'order': selectedOrder,
-                  });
+                  widget.onApply(Map<String, String>.from(_selectedValues));
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
@@ -237,25 +173,25 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
   }
 
   Widget _buildChipSelector(
-    Map<String, String> options,
+    List<FilterOption> options,
     String currentValue,
     Function(String) onSelect,
   ) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: options.entries.map((entry) {
-        final isSelected = entry.key == currentValue;
+      children: options.map((option) {
+        final isSelected = option.value == currentValue;
         return ChoiceChip(
-          label: Text(entry.value),
+          label: Text(option.name),
           selected: isSelected,
           onSelected: (_) {
             HapticFeedback.selectionClick();
-            // Deselect / reset back to '0' (All) if selected chip is tapped again
-            if (isSelected && entry.key != '0') {
-              onSelect('0');
+            // Deselect / reset back to first option if tapped again
+            if (isSelected && option != options.first) {
+              onSelect(options.first.value);
             } else {
-              onSelect(entry.key);
+              onSelect(option.value);
             }
           },
           selectedColor: AppTheme.primary,

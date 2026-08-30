@@ -14,11 +14,12 @@ import 'package:get/get.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/models/media.dart';
-import 'package:vad_app/services/kisskh_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/services/recommendation_service.dart';
 import 'package:vad_app/widgets/custom_video_controls.dart';
 import 'package:vad_app/widgets/video_player_section.dart';
 import 'package:vad_app/widgets/anime_card.dart';
+import 'package:vad_app/screens/browse_screen.dart';
 
 // Re-export SubtitleStyle
 export 'package:vad_app/widgets/custom_video_controls.dart' show SubtitleStyle;
@@ -32,6 +33,7 @@ class WatchScreen extends StatefulWidget {
   final int startPositionMs;
   final bool autoPlay;
   final String? localFilePath;
+  final String? sourceId;
 
   const WatchScreen({
     super.key,
@@ -43,6 +45,7 @@ class WatchScreen extends StatefulWidget {
     this.startPositionMs = 0,
     this.autoPlay = false,
     this.localFilePath,
+    this.sourceId,
   });
 
   @override
@@ -80,7 +83,33 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   late final ValueNotifier<SubtitleStyle> _subtitleStyleNotifier;
 
   final List<StreamSubscription> _subscriptions = [];
-  final kisskhService = KissKHService();
+  SourceProvider get sourceProvider {
+    // 1. Explicit source override passed to WatchScreen
+    if (widget.sourceId != null && widget.sourceId!.isNotEmpty) {
+      final explicit = SourceRegistry().get(widget.sourceId!);
+      if (explicit != null) return explicit;
+    }
+    // 2. Contextual source from Watch History
+    final hist = settings.getHistory()['${widget.animeId}'];
+    if (hist is Map && hist['sourceId'] is String) {
+      final fromHist = SourceRegistry().get(hist['sourceId']);
+      if (fromHist != null) return fromHist;
+    }
+    // 3. Contextual source from Watchlist / Library
+    final listEntry = settings.getAnimeList()['${widget.animeId}'];
+    if (listEntry is Map && listEntry['sourceId'] is String) {
+      final fromList = SourceRegistry().get(listEntry['sourceId']);
+      if (fromList != null) return fromList;
+    }
+    // 4. Contextual source from Vault Data
+    final vaultData = settings.getVaultData()['${widget.animeId}'];
+    if (vaultData is Map && vaultData['sourceId'] is String) {
+      final fromVault = SourceRegistry().get(vaultData['sourceId']);
+      if (fromVault != null) return fromVault;
+    }
+    // 5. Fallback to active global source
+    return SourceRegistry().active;
+  }
   final recommendationService = RecommendationService();
   final settings = Get.find<SettingsController>();
 
@@ -234,7 +263,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       _loadingRecs = true;
     });
     try {
-      final details = await kisskhService.fetchDetail(widget.animeId.toString());
+      final details = await sourceProvider.fetchDetail(widget.animeId.toString());
       if (mounted) {
         final sortedEpisodes = _normalizeAndSortEpisodes(details?.episodeList ?? []);
         setState(() {
@@ -277,8 +306,12 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           }
         }
 
-        // Fetch recommendations asynchronously
-        if (details != null) {
+        // Fetch recommendations asynchronously if not already provided natively by details
+        if (details != null && details.recommendations.isNotEmpty) {
+          setState(() {
+            _loadingRecs = false;
+          });
+        } else if (details != null) {
           recommendationService.getRecommendations(details).then((recs) {
             if (mounted) {
               setState(() {
@@ -340,7 +373,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
 
     final ep = _episodes[index];
     try {
-      final stream = await kisskhService.fetchVideoStream(ep.id);
+      final stream = await sourceProvider.fetchVideoStream(ep.id);
       if (stream != null && stream.url.isNotEmpty) {
         _subtitles = stream.subtitles;
 
@@ -386,8 +419,8 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           setState(() {
             _isLoading = false;
             _errorMessage = isUpcoming
-                ? 'This title is marked as Upcoming. Episodes have not been released yet on KissKH.'
-                : 'Failed to resolve video stream from KissKH. Tap retry or select another episode.';
+                ? 'This title is marked as Upcoming. Episodes have not been released yet on ${sourceProvider.name}.'
+                : 'Failed to resolve video stream from ${sourceProvider.name}. Tap retry or select another episode.';
           });
         }
       }
@@ -430,7 +463,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       // Debounce: only persist when position moved ≥5s from last save
       if ((posMs - _lastSavedPositionMs).abs() < 5000) return;
 
-      if (posMs > 0 && durMs > 0) {
+      if (posMs > 0 && durMs > 0 && posMs != _lastSavedPositionMs) {
         final epNum = (_currentEpisodeIndex < _episodes.length && _episodes[_currentEpisodeIndex].episodeNumber > 0)
             ? _episodes[_currentEpisodeIndex].episodeNumber.toInt()
             : _currentEpisodeIndex + 1;
@@ -443,6 +476,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           _episodes.length,
           _details?.title ?? widget.title,
           _details?.coverUrl ?? widget.coverImage ?? '',
+          sourceId: sourceProvider.id,
         );
         _lastSavedPositionMs = posMs;
       }
@@ -460,6 +494,7 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       currentMap['title'] = _details?.title ?? widget.title;
       currentMap['coverImage'] = {'large': _details?.coverUrl ?? widget.coverImage ?? ''};
       currentMap['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+      currentMap['sourceId'] = sourceProvider.id;
 
       final epNum = (_currentEpisodeIndex < _episodes.length && _episodes[_currentEpisodeIndex].episodeNumber > 0)
           ? _episodes[_currentEpisodeIndex].episodeNumber.toInt()
@@ -948,8 +983,12 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
 
   Widget _buildAnimeDetailsTab() {
     final desc = _details?.description ?? 'No description available.';
-    final genres = _details?.genres ?? [];
-    final recs = _details?.recommendations ?? [];
+    final tags = (_details?.tags.isNotEmpty == true)
+        ? _details!.tags
+        : (_details?.genres ?? []);
+    final recs = (_details?.recommendations.isNotEmpty == true)
+        ? _details!.recommendations
+        : _computedRecs;
 
     return CustomScrollView(
       slivers: [
@@ -990,11 +1029,11 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
                 // Media Info Card
                 _buildMediaInfoCard(),
 
-                // Genres section
-                if (genres.isNotEmpty) ...[
+                // Tags section (Clickable to browse/filter)
+                if (tags.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text(
-                    'Genres',
+                    'Tags',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -1005,25 +1044,40 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: genres.map((g) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.12),
+                    children: tags.map((t) {
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            Navigator.push(
+                              context,
+                              AppTheme.performantFadeRoute(
+                                BrowseScreen(initialSearch: t),
+                              ),
+                            );
+                          },
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppTheme.primary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          g,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryLight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppTheme.primary.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              t,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryLight,
+                              ),
+                            ),
                           ),
                         ),
                       );
@@ -1077,10 +1131,10 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
                     height: 180,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _computedRecs.isNotEmpty ? _computedRecs.length : recs.length,
+                      itemCount: recs.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 12),
                       itemBuilder: (_, idx) {
-                        final recItem = _computedRecs.isNotEmpty ? _computedRecs[idx] : recs[idx];
+                        final recItem = recs[idx];
                         return AnimeCard.fromMediaItem(
                           recItem,
                           width: 110,
@@ -1245,9 +1299,9 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
                     color: AppTheme.textWhite,
                   ),
                 ),
-                const Text(
-                  'KissKH',
-                  style: TextStyle(
+                Text(
+                  sourceProvider.name,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.textMuted,
                   ),

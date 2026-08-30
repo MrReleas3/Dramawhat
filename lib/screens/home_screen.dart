@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/models/media.dart';
-import 'package:vad_app/services/kisskh_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/theme/app_theme.dart';
 import 'package:vad_app/widgets/anime_card.dart';
 import 'package:vad_app/screens/watch_screen.dart';
@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<MediaListItem> _displayedRecs = [];
 
   final settings = Get.find<SettingsController>();
-  final kisskhService = KissKHService();
+  SourceProvider get sourceProvider => SourceRegistry().active;
 
   @override
   void initState() {
@@ -63,8 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     try {
       final results = await Future.wait([
-        kisskhService.fetchPopular(page: 1),
-        kisskhService.fetchKDrama(page: 1),
+        sourceProvider.fetchPopular(page: 1),
+        sourceProvider.fetchLatest(page: 1),
       ]);
 
       if (mounted) {
@@ -143,8 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppTheme.textMuted.withValues(alpha: 0.4),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Could not load content from KissKH',
+                Text(
+                  'Could not load content from ${sourceProvider.name}',
                   style: TextStyle(
                     color: AppTheme.textMuted,
                     fontSize: 15,
@@ -197,12 +197,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   items: popularList,
                   onItemClick: (item) => _openDetail(item),
                   onSeeAll: () {
+                    final filters = switch (sourceProvider.id) {
+                      'viu_ph' => {'category': '91'},
+                      _ => {'order': '2'},
+                    };
                     Navigator.push(
                       context,
                       AppTheme.performantFadeRoute(
-                        const BrowseScreen(
-                          initialOrder: '2', // Popular
-                        ),
+                        BrowseScreen(initialFilters: filters),
                       ),
                     );
                   },
@@ -210,22 +212,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             const SizedBox(height: 24),
 
-            // Top K-Drama Row
+            // Top / Fresh Releases Row
             if (latestList.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: AnimeRow(
-                  title: 'Top K-Drama',
+                  title: sourceProvider.id == 'viu_ph' ? 'Fresh Releases' : 'Top K-Drama',
                   items: latestList,
                   onItemClick: (item) => _openDetail(item),
                   onSeeAll: () {
+                    final filters = switch (sourceProvider.id) {
+                      'viu_ph' => {'category': '30'},
+                      _ => {'country': '2', 'order': '1'},
+                    };
                     Navigator.push(
                       context,
                       AppTheme.performantFadeRoute(
-                        const BrowseScreen(
-                          initialCountry: '2', // South Korea / K-Drama
-                          initialOrder: '1',   // Top / Popular (matching kisskh.nl website)
-                        ),
+                        BrowseScreen(initialFilters: filters),
                       ),
                     );
                   },
@@ -253,18 +256,18 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Roll for recommendations',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'Discover something new from KissKH',
-                    style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                    'Discover something new from ${sourceProvider.name}',
+                    style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
                   ),
                 ],
               ),

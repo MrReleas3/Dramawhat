@@ -259,6 +259,8 @@ class _VaultScreenState extends State<VaultScreen> {
                           ? (coverImage['large'] ?? coverImage['medium'] ?? '')
                           : (coverImage is String ? coverImage : '');
 
+                      final sourceId = anime['sourceId'] as String?;
+
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -268,6 +270,7 @@ class _VaultScreenState extends State<VaultScreen> {
                                 animeId: id,
                                 title: title,
                                 coverImage: cover,
+                                sourceId: sourceId,
                               ),
                             ),
                           );

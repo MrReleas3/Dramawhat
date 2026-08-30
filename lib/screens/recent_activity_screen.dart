@@ -102,6 +102,8 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
     final title = _extractTitle(data['title']);
     final cover = _extractCoverImage(data['coverImage']);
 
+    final sourceId = data['sourceId'] as String?;
+
     Navigator.push(
       context,
       AppTheme.performantFadeRoute(
@@ -112,6 +114,7 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
           startEpisode: epNum.clamp(0, 9999),
           startPositionMs: posMs,
           autoPlay: true,
+          sourceId: sourceId,
         ),
       ),
     );
@@ -151,7 +154,7 @@ class _RecentActivityScreenState extends State<RecentActivityScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Your recently watched KissKH shows',
+                        'Your recently watched shows',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textMuted,

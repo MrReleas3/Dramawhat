@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:vad_app/services/recommendation_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Storage key constants — single source of truth so nothing is ever mis-typed
@@ -35,6 +36,8 @@ class _K {
   static const preferredSubLanguage    = 'preferredSubLanguage';
   static const defaultCountryFilter    = 'defaultCountryFilter';
   static const defaultTypeFilter       = 'defaultTypeFilter';
+  // Multi-source
+  static const activeSourceId          = 'activeSourceId';
 }
 
 class SettingsController extends GetxController {
@@ -63,6 +66,9 @@ class SettingsController extends GetxController {
   final defaultCountryFilter      = '0'.obs;  // 0=All
   final defaultTypeFilter         = '0'.obs;  // 0=All
 
+  // ── Multi-source ──────────────────────────────────────────────────────────
+  final activeSourceId            = 'viu_ph'.obs;
+
   // ── Reactive counters / tickers ───────────────────────────────────────────
   /// Increments whenever the anime list changes — drives reactive UI rebuilds.
   final animeListVersion  = 0.obs;
@@ -70,7 +76,7 @@ class SettingsController extends GetxController {
   final mainRefreshTicker = 0.obs;
 
   // ── App version ───────────────────────────────────────────────────────────
-  final appVersion = '0.5.5'.obs;
+  final appVersion = '0.5.7'.obs;
 
   // ── Session-only flags (not persisted) ───────────────────────────────────
   bool testingUnlocked = false;
@@ -104,6 +110,8 @@ class SettingsController extends GetxController {
     preferredSubLanguage.value       = _box.read(_K.preferredSubLanguage) ?? 'English';
     defaultCountryFilter.value       = _box.read(_K.defaultCountryFilter) ?? '0';
     defaultTypeFilter.value          = _box.read(_K.defaultTypeFilter)    ?? '0';
+    // Multi-source
+    activeSourceId.value             = _box.read(_K.activeSourceId) ?? 'viu_ph';
     _loadVersion();
     _initVaultPin();
   }
@@ -194,6 +202,15 @@ class SettingsController extends GetxController {
     _box.write(_K.defaultTypeFilter, type);
   }
 
+  // ── Multi-source ────────────────────────────────────────────────────────
+  void setActiveSource(String sourceId) {
+    activeSourceId.value = sourceId;
+    _box.write(_K.activeSourceId, sourceId);
+    SourceRegistry().setActive(sourceId);
+    // Trigger global refresh so all screens reload with new source
+    mainRefreshTicker.value++;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Subtitle setters
   // ─────────────────────────────────────────────────────────────────────────
@@ -270,8 +287,9 @@ class SettingsController extends GetxController {
     int durationMs,
     int totalEpisodes,
     dynamic title,
-    String coverImage,
-  ) {
+    String coverImage, {
+    String? sourceId,
+  }) {
     if (positionMs <= 0 || durationMs <= 0) return;
 
     final key = dramaId.toString();
@@ -294,6 +312,11 @@ class SettingsController extends GetxController {
     if (title != null)          entry['title']      = title;
     if (coverImage.isNotEmpty)  entry['coverImage'] = coverImage;
     entry['status'] = 'WATCHING';
+    if (sourceId != null && sourceId.isNotEmpty) {
+      entry['sourceId'] = sourceId;
+    } else if (!entry.containsKey('sourceId')) {
+      entry['sourceId'] = activeSourceId.value;
+    }
 
     // Keep original timestamp to preserve history ordering
     entry.putIfAbsent('timestamp', () => DateTime.now().millisecondsSinceEpoch);
@@ -339,6 +362,7 @@ class SettingsController extends GetxController {
       final existing = list[key];
       list[key] = {
         if (existing is Map) ...Map<String, dynamic>.from(existing),
+        'sourceId': animeData['sourceId'] ?? (existing is Map ? existing['sourceId'] : null) ?? activeSourceId.value,
         ...animeData,
         'id':        id,
         'status':    status,
@@ -438,6 +462,7 @@ class SettingsController extends GetxController {
         'id':         dramaId,
         'title':      minimalData['title'] ?? 'Unknown',
         'coverImage': minimalData['coverImage'] ?? minimalData['thumbnail'] ?? '',
+        'sourceId':   minimalData['sourceId'] ?? activeSourceId.value,
         'updatedAt':  DateTime.now().millisecondsSinceEpoch ~/ 1000,
       };
       _box.write(_K.vaultData, map);

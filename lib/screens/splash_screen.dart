@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:vad_app/services/kisskh_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/theme/app_theme.dart';
 
 /// Premium splash / boot screen for Dramawhat.
@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen>
   String _statusText = 'Initializing…';
   late final List<String> _steps;
   int _stepIdx = 0;
-  final kisskhService = KissKHService();
+  SourceProvider get sourceProvider => SourceRegistry().active;
 
   @override
   void initState() {
@@ -113,11 +113,11 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _runPrewarmTasks() async {
     try {
       await Future.wait([
-        kisskhService.fetchPopular().timeout(
+        sourceProvider.fetchPopular().timeout(
           const Duration(seconds: 4),
           onTimeout: () => [],
         ),
-        kisskhService.fetchLatest().timeout(
+        sourceProvider.fetchLatest().timeout(
           const Duration(seconds: 4),
           onTimeout: () => [],
         ),

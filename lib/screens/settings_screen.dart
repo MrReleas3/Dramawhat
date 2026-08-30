@@ -8,6 +8,7 @@ import 'package:vad_app/screens/vault_screen.dart';
 import 'package:vad_app/theme/app_theme.dart';
 import 'package:vad_app/config/build_config.dart';
 import 'package:vad_app/services/update_checker_service.dart';
+import 'package:vad_app/services/sources/source_registry.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -263,6 +264,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
         () => ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           children: [
+            // ── CONTENT SOURCE ──────────────────────────────────────────
+            _collapsibleSection(
+              key: 'ContentSource',
+              label: 'CONTENT SOURCE',
+              icon: Iconsax.global,
+              children: [
+                ...SourceRegistry().all.map((source) {
+                  final isActive = settings.activeSourceId.value == source.id;
+                  return _bundleTile(
+                    icon: isActive ? Iconsax.tick_circle5 : Iconsax.monitor,
+                    iconColor: isActive ? AppTheme.primary : AppTheme.textMuted,
+                    title: source.name,
+                    subtitle: source.baseUrl,
+                    trailing: isActive
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.4)),
+                            ),
+                            child: const Text(
+                              'ACTIVE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          )
+                        : TextButton(
+                            onPressed: () {
+                              HapticFeedback.mediumImpact();
+                              settings.setActiveSource(source.id);
+                              AppTheme.showGlassySnackBar(
+                                title: 'Source Changed',
+                                message: 'Now using ${source.name}',
+                                icon: Iconsax.global,
+                              );
+                            },
+                            child: const Text(
+                              'Switch',
+                              style: TextStyle(color: AppTheme.primary, fontSize: 12),
+                            ),
+                          ),
+                    onTap: isActive
+                        ? null
+                        : () {
+                            HapticFeedback.mediumImpact();
+                            settings.setActiveSource(source.id);
+                            AppTheme.showGlassySnackBar(
+                              title: 'Source Changed',
+                              message: 'Now using ${source.name}',
+                              icon: Iconsax.global,
+                            );
+                          },
+                  );
+                }),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
             // ── GENERAL (bundled: 3 toggles) ─────────────────────────────
             _collapsibleSection(
               key: 'General',
@@ -636,7 +701,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     Widget? trailing,
     VoidCallback? onTap,
+    Color? iconColor,
   }) {
+    final effectiveColor = iconColor ?? AppTheme.primary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -647,10 +714,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.1),
+                color: effectiveColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: AppTheme.primary),
+              child: Icon(icon, size: 18, color: effectiveColor),
             ),
             const SizedBox(width: 12),
             Expanded(

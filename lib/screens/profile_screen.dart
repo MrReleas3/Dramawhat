@@ -530,6 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
+        final sourceId = item['sourceId'] as String?;
         Navigator.push(
           context,
           AppTheme.performantFadeRoute(
@@ -537,6 +538,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               animeId: dramaId,
               title: title,
               coverImage: coverUrl,
+              sourceId: sourceId,
             ),
           ),
         );
@@ -636,7 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   Text(
                     cleanDesc.isNotEmpty
                         ? cleanDesc
-                        : 'Tracked show on your KissKH watchlist.',
+                        : 'Tracked show on your watchlist.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

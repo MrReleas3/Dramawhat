@@ -5,14 +5,31 @@ import 'package:http/http.dart' as http;
 import '../models/media.dart';
 import 'kisskh_cipher.dart';
 import 'kisskh_subtitle_decryptor.dart';
+import 'sources/source_provider.dart';
 
-class KissKHService {
+class KissKHService implements SourceProvider {
   static final KissKHService _instance = KissKHService._internal();
   factory KissKHService() => _instance;
   KissKHService._internal();
 
-  String baseUrl = "https://kisskh.id";
-  String get apiUrl => "$baseUrl/api";
+  // ── SourceProvider metadata ─────────────────────────────────────────────
+  @override
+  String get id => 'kisskh';
+
+  @override
+  String get name => 'KissKH';
+
+  @override
+  String get iconUrl => 'https://www.google.com/s2/favicons?sz=128&domain=kisskh.id';
+
+  @override
+  String get baseUrl => _baseUrl;
+
+  @override
+  bool get supportsLatest => true;
+
+  final String _baseUrl = "https://kisskh.id";
+  String get apiUrl => "$_baseUrl/api";
 
   Map<String, String> get headers => {
         "User-Agent":
@@ -23,7 +40,6 @@ class KissKHService {
 
   final List<MediaListItem> _cachedPool = [];
 
-  List<MediaListItem> getCachedPool() => List<MediaListItem>.from(_cachedPool);
 
   void _cacheItems(List<MediaListItem> items) {
     final existingIds = _cachedPool.map((i) => i.id).toSet();
@@ -36,6 +52,7 @@ class KissKHService {
   }
 
   /// Fetch popular dramas/shows
+  @override
   Future<List<MediaListItem>> fetchPopular({int page = 1}) async {
     try {
       final url = Uri.parse(
@@ -57,6 +74,7 @@ class KissKHService {
   }
 
   /// Fetch latest episode releases
+  @override
   Future<List<MediaListItem>> fetchLatest({int page = 1}) async {
     try {
       final url = Uri.parse(
@@ -98,8 +116,31 @@ class KissKHService {
     return [];
   }
 
-  /// Search dramas with filters
+  /// SourceProvider-compatible search with filter map.
+  @override
   Future<List<MediaListItem>> search({
+    required String query,
+    int page = 1,
+    Map<String, String>? filters,
+  }) async {
+    final type = filters?['type'] ?? '0';
+    final sub = filters?['sub'] ?? '0';
+    final country = filters?['country'] ?? '0';
+    final status = filters?['status'] ?? '0';
+    final order = filters?['order'] ?? '2';
+    return _searchInternal(
+      query: query,
+      page: page,
+      type: type,
+      sub: sub,
+      country: country,
+      status: status,
+      order: order,
+    );
+  }
+
+  /// Internal search with explicit KissKH filter parameters.
+  Future<List<MediaListItem>> _searchInternal({
     required String query,
     int page = 1,
     String type = "0",
@@ -139,6 +180,7 @@ class KissKHService {
   }
 
   /// Fetch full drama details including episodes list
+  @override
   Future<MediaDetails?> fetchDetail(String dramaId) async {
     try {
       // Clean dramaId if full URL string was passed
@@ -156,6 +198,7 @@ class KissKHService {
   }
 
   /// Fetch video stream URL and subtitle tracks for an episode
+  @override
   Future<VideoStream?> fetchVideoStream(String rawEpId) async {
     try {
       // Clean rawEpId to ensure pure numeric episode ID
@@ -281,4 +324,69 @@ class KissKHService {
     }
     return null;
   }
+
+  // ── SourceProvider: getFilters ──────────────────────────────────────────
+  @override
+  List<FilterGroup> getFilters() {
+    return [
+      FilterGroup(
+        type: 'type',
+        name: 'Type',
+        options: const [
+          FilterOption(name: 'All', value: '0'),
+          FilterOption(name: 'TV / Series', value: '1'),
+          FilterOption(name: 'Movie', value: '2'),
+          FilterOption(name: 'Anime', value: '3'),
+          FilterOption(name: 'Hollywood', value: '4'),
+        ],
+      ),
+      FilterGroup(
+        type: 'sub',
+        name: 'Subtitle',
+        options: const [
+          FilterOption(name: 'All', value: '0'),
+          FilterOption(name: 'Sub', value: '1'),
+          FilterOption(name: 'Dub', value: '2'),
+        ],
+      ),
+      FilterGroup(
+        type: 'country',
+        name: 'Country',
+        options: const [
+          FilterOption(name: 'All', value: '0'),
+          FilterOption(name: 'China', value: '1'),
+          FilterOption(name: 'South Korea', value: '2'),
+          FilterOption(name: 'Japan', value: '3'),
+          FilterOption(name: 'Hong Kong', value: '4'),
+          FilterOption(name: 'Thailand', value: '5'),
+          FilterOption(name: 'United States', value: '6'),
+          FilterOption(name: 'Taiwan', value: '7'),
+          FilterOption(name: 'Philippines', value: '8'),
+        ],
+      ),
+      FilterGroup(
+        type: 'status',
+        name: 'Status',
+        options: const [
+          FilterOption(name: 'All', value: '0'),
+          FilterOption(name: 'Ongoing', value: '1'),
+          FilterOption(name: 'Completed', value: '2'),
+        ],
+      ),
+      FilterGroup(
+        type: 'order',
+        name: 'Sort',
+        options: const [
+          FilterOption(name: 'Latest', value: '1'),
+          FilterOption(name: 'Most Popular', value: '2'),
+          FilterOption(name: 'A-Z', value: '3'),
+        ],
+        selectedIndex: 1,
+      ),
+    ];
+  }
+
+  // ── SourceProvider: getCachedPool ────────────────────────────────────────
+  @override
+  List<MediaListItem> getCachedPool() => List<MediaListItem>.from(_cachedPool);
 }
