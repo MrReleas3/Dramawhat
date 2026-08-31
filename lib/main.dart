@@ -31,6 +31,7 @@ import 'package:vad_app/services/update_checker_service.dart';
 import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/services/kisskh_service.dart';
 import 'package:vad_app/services/sources/viu_service.dart';
+import 'package:vad_app/services/sources/vidup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,7 @@ void main() async {
   // Register content sources & set active from persisted setting
   SourceRegistry().register(KissKHService());
   SourceRegistry().register(ViuService());
+  SourceRegistry().register(VidupService());
   final settings = Get.find<SettingsController>();
   SourceRegistry().setActive(settings.activeSourceId.value);
 

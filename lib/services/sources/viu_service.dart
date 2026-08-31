@@ -59,17 +59,17 @@ class ViuService implements SourceProvider {
     try {
       final uuid = _generateUuid();
       final body = jsonEncode({
-        'deviceId': uuid,
+        'appVersion': '4.21.1',
+        'countryCode': _countryCode,
+        'language': _languageFlagId,
         'platform': 'browser',
         'platformFlagLabel': 'web',
-        'areaId': _areaId,
-        'languageFlagId': _languageFlagId,
-        'countryCode': _countryCode,
+        'uuid': uuid,
       });
 
       final res = await http
           .post(
-            Uri.parse('$_apiBase/account/token'),
+            Uri.parse('$_apiBase/auth/token'),
             headers: {
               ..._headers,
               'Content-Type': 'application/json',
@@ -131,16 +131,21 @@ class ViuService implements SourceProvider {
         'area_id': _areaId,
         'language_flag_id': _languageFlagId,
         'countryCode': _countryCode,
+        'platformFlagLabel': 'web',
+        'areaId': _areaId,
+        'languageFlagId': _languageFlagId,
         ...params,
       };
 
+      final requestHeaders = Map<String, String>.from(_headers);
       if (token != null && token.isNotEmpty) {
         queryParams['token'] = token;
+        requestHeaders['Authorization'] = 'Bearer $token';
       }
 
       final uri = Uri.parse('$_apiBase$path').replace(queryParameters: queryParams);
 
-      final res = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 12));
+      final res = await http.get(uri, headers: requestHeaders).timeout(const Duration(seconds: 12));
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as Map<String, dynamic>;
@@ -625,13 +630,23 @@ class ViuService implements SourceProvider {
 
       final stream = playRes?['data']?['stream'] as Map<String, dynamic>?;
       if (stream == null) {
-        debugPrint('[ViuService] No stream data in playback response');
+        final code = playRes?['status']?['code'];
+        final msg = playRes?['status']?['message'];
+        debugPrint('[ViuService] No stream data in playback response (code: $code, message: $msg)');
         return null;
       }
 
       // Try resolutions from best to worst
       const resolutions = ['s1080p', 's720p', 's480p', 's240p'];
-      const cdnKeys = ['url', 'url2', 'url3'];
+      const cdnKeys = [
+        'url',
+        'airplayurl',
+        'url2',
+        'url3',
+        'airplayurl2',
+        'airplayurl3',
+        'hls',
+      ];
 
       String? bestUrl;
       String bestQuality = 'Viu Stream';
@@ -665,6 +680,7 @@ class ViuService implements SourceProvider {
         headers: {
           'User-Agent': _headers['User-Agent']!,
           'Referer': 'https://www.viu.com/',
+          'Origin': 'https://www.viu.com',
         },
         subtitles: subtitles,
       );

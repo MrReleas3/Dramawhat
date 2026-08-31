@@ -16,6 +16,7 @@ import 'package:vad_app/controllers/settings_controller.dart';
 import 'package:vad_app/models/media.dart';
 import 'package:vad_app/services/sources/source_registry.dart';
 import 'package:vad_app/services/recommendation_service.dart';
+import 'package:vad_app/services/tmdb_mapping_service.dart';
 import 'package:vad_app/widgets/custom_video_controls.dart';
 import 'package:vad_app/widgets/video_player_section.dart';
 import 'package:vad_app/widgets/anime_card.dart';
@@ -26,6 +27,7 @@ export 'package:vad_app/widgets/custom_video_controls.dart' show SubtitleStyle;
 
 class WatchScreen extends StatefulWidget {
   final int animeId;
+  final String? rawId;
   final String title;
   final String? coverImage;
   final List<Map<String, dynamic>> episodes;
@@ -38,6 +40,7 @@ class WatchScreen extends StatefulWidget {
   const WatchScreen({
     super.key,
     required this.animeId,
+    this.rawId,
     this.title = '',
     this.coverImage,
     this.episodes = const [],
@@ -81,6 +84,10 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   List<SubtitleTrack> _subtitles = [];
   SubtitleTrack? _activeSubtitle;
   late final ValueNotifier<SubtitleStyle> _subtitleStyleNotifier;
+
+  // Multi-server switching (TMDB mapping)
+  List<StreamServerOption> _availableServers = [];
+  StreamServerOption? _activeServer;
 
   final List<StreamSubscription> _subscriptions = [];
   SourceProvider get sourceProvider {
@@ -263,7 +270,10 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       _loadingRecs = true;
     });
     try {
-      final details = await sourceProvider.fetchDetail(widget.animeId.toString());
+      final effectiveId = widget.rawId != null && widget.rawId!.isNotEmpty
+          ? widget.rawId!
+          : widget.animeId.toString();
+      final details = await sourceProvider.fetchDetail(effectiveId);
       if (mounted) {
         final sortedEpisodes = _normalizeAndSortEpisodes(details?.episodeList ?? []);
         setState(() {
@@ -369,6 +379,8 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       _errorMessage = null;
       _subtitles = [];
       _activeSubtitle = null;
+      _availableServers = [];
+      _activeServer = null;
     });
 
     final ep = _episodes[index];
@@ -406,12 +418,18 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           ),
         );
 
-        // Seeking is handled by the duration stream listener (auto-seek)
-
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
+        }
+
+        // Populate TMDB multi-server list in background (if enabled)
+        if (settings.enableTmdbMapping.value) {
+          _loadTmdbServers(
+            nativeStream: stream,
+            episodeNumber: (ep.episodeNumber > 0) ? ep.episodeNumber.toInt() : index + 1,
+          );
         }
       } else {
         if (mounted) {
@@ -432,6 +450,97 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
           _errorMessage = isUpcoming
               ? 'This title is marked as Upcoming. Episodes have not been released yet.'
               : 'Error loading video stream: $e';
+        });
+      }
+    }
+  }
+
+  /// Resolves available TMDB-mapped servers in the background and updates state.
+  Future<void> _loadTmdbServers({
+    required VideoStream nativeStream,
+    required int episodeNumber,
+  }) async {
+    try {
+      final title = _details?.title ?? widget.title;
+      final releaseYear = _details?.releaseYear;
+      final mediaType = _details?.mediaType;
+      final seasonNum = TmdbMappingService().parseSeasonNumber(title);
+
+      final servers = await TmdbMappingService().resolveServersForEpisode(
+        dramaTitle: title,
+        episodeNumber: episodeNumber,
+        seasonNumber: seasonNum,
+        releaseYear: releaseYear,
+        mediaType: mediaType,
+        nativeStream: nativeStream,
+        nativeSourceName: sourceProvider.name,
+      );
+
+      if (mounted && servers.isNotEmpty) {
+        // Select the preferred server from settings, or fallback to native
+        final preferred = settings.preferredStreamServer.value;
+        StreamServerOption? selected;
+        if (preferred.isNotEmpty) {
+          selected = servers.firstWhereOrNull((s) => s.id == preferred);
+        }
+        selected ??= servers.first; // native is always first
+
+        setState(() {
+          _availableServers = servers;
+          _activeServer = selected;
+        });
+      }
+    } catch (e) {
+      debugPrint('[WatchScreen] _loadTmdbServers error: $e');
+    }
+  }
+
+  /// Switches the active stream server without losing playback position.
+  Future<void> _switchToServer(StreamServerOption server) async {
+    if (server.id == _activeServer?.id) return;
+    final posMs = _player.state.position.inMilliseconds;
+
+    _player.stop();
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _activeServer = server;
+      _subtitles = server.subtitles;
+      _activeSubtitle = null;
+    });
+
+    settings.preferredStreamServer.value = server.id;
+
+    try {
+      await _player.open(
+        Media(server.streamUrl, httpHeaders: server.headers),
+      );
+      // Restore subtitle preference
+      SubtitleTrack? defaultSub;
+      final preferredLang = settings.preferredSubLanguage.value.toLowerCase();
+      for (final sub in _subtitles) {
+        final label = sub.label.toLowerCase();
+        if (label.contains(preferredLang) || label.contains('eng') || label.contains('english')) {
+          defaultSub = sub;
+          break;
+        }
+      }
+      if (defaultSub == null && _subtitles.isNotEmpty) defaultSub = _subtitles.first;
+      if (defaultSub != null) {
+        _activeSubtitle = defaultSub;
+        _applySubtitleTrack(defaultSub);
+      }
+      // Seek back to position (with slight delay for buffering)
+      if (posMs > 0) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        await _player.seek(Duration(milliseconds: posMs));
+      }
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load server "${server.name}": $e';
         });
       }
     }
@@ -596,6 +705,145 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
     };
   }
 
+  /// Bottom sheet server picker with quality badges.
+  void _showServerPickerSheet() {
+    if (_availableServers.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1E).withValues(alpha: 0.92),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 4),
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Select Stream Server',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  for (final server in _availableServers) ...[  
+                    const Divider(height: 1, color: Colors.white10),
+                    _buildServerTile(server),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServerTile(StreamServerOption server) {
+    final isActive = _activeServer?.id == server.id;
+    final tagColor = server.is4k
+        ? const Color(0xFF6C63FF)
+        : server.tag == 'Original'
+            ? AppTheme.primary
+            : server.tag == 'Fast HD'
+                ? const Color(0xFF00BFA5)
+                : server.tag == 'Backup'
+                    ? const Color(0xFFFF8A65)
+                    : const Color(0xFF42A5F5);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          _switchToServer(server);
+        },
+        splashColor: AppTheme.primary.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.04),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                Icons.dns_rounded,
+                color: isActive ? AppTheme.primary : Colors.white54,
+                size: 22,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      server.name,
+                      style: TextStyle(
+                        color: isActive ? AppTheme.primary : Colors.white,
+                        fontSize: 14,
+                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      server.description,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: tagColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: tagColor.withValues(alpha: 0.5), width: 0.8),
+                ),
+                child: Text(
+                  server.tag,
+                  style: TextStyle(
+                    color: tagColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (isActive) ...[  
+                const SizedBox(width: 10),
+                Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSubtitlePicker() {
     showModalBottomSheet(
       context: context,
@@ -747,6 +995,8 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
       hasSoftsubs: _subtitles.isNotEmpty,
       onSubtitleTapped: _showSubtitlePicker,
       activeSubtitleLabel: _activeSubtitle?.label,
+      onServersTapped: _availableServers.isNotEmpty ? _showServerPickerSheet : null,
+      activeServerName: _activeServer?.name,
       isFullscreen: _isFullscreen,
       onFullscreenTapped: _toggleFullscreen,
       isLandscape: _isPlayerLandscape,

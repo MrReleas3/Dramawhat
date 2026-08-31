@@ -24,6 +24,7 @@ class CustomVideoControls extends StatefulWidget {
   final void Function(int index) onEpisodeTapped;
 
   final VoidCallback? onServersTapped;
+  final String? activeServerName;
   final bool isFullscreen;
   final VoidCallback onFullscreenTapped;
   final String? nextEpisodeName;
@@ -58,6 +59,7 @@ class CustomVideoControls extends StatefulWidget {
     required this.currentEpisodeIndex,
     required this.onEpisodeTapped,
     this.onServersTapped,
+    this.activeServerName,
     required this.isFullscreen,
     required this.onFullscreenTapped,
     this.nextEpisodeName,
@@ -801,6 +803,18 @@ class _CustomVideoControlsState extends State<CustomVideoControls>
                               },
                             );
                           }),
+                          // Stream Server Switcher
+                          if (widget.onServersTapped != null)
+                            _buildYtSettingsTile(
+                              icon: Icons.dns_rounded,
+                              label: 'Stream server',
+                              value: widget.activeServerName ?? 'Auto',
+                              showChevron: true,
+                              onTap: () {
+                                Navigator.pop(context);
+                                widget.onServersTapped?.call();
+                              },
+                            ),
                           // Subtitle Selection (Track)
                           if (widget.onSubtitleTapped != null)
                             _buildYtSettingsTile(

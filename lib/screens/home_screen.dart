@@ -97,12 +97,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openDetail(MediaListItem item, {bool autoPlay = false}) {
-    final dramaId = int.tryParse(item.id) ?? 0;
+    final dramaId = int.tryParse(RegExp(r'\d+').firstMatch(item.id)?.group(0) ?? '') ?? (int.tryParse(item.id) ?? 0);
     Navigator.push(
       context,
       AppTheme.performantFadeRoute(
         WatchScreen(
           animeId: dramaId,
+          rawId: item.id,
           title: item.title,
           coverImage: item.coverUrl,
           autoPlay: autoPlay,
@@ -199,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSeeAll: () {
                     final filters = switch (sourceProvider.id) {
                       'viu_ph' => {'category': '91'},
+                      'vidup' => {'sort': 'popularity.desc'},
                       _ => {'order': '2'},
                     };
                     Navigator.push(
@@ -217,12 +219,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: AnimeRow(
-                  title: sourceProvider.id == 'viu_ph' ? 'Fresh Releases' : 'Top K-Drama',
+                  title: sourceProvider.id == 'viu_ph'
+                      ? 'Fresh Releases'
+                      : (sourceProvider.id == 'vidup' ? 'Latest On The Air' : 'Top K-Drama'),
                   items: latestList,
                   onItemClick: (item) => _openDetail(item),
                   onSeeAll: () {
                     final filters = switch (sourceProvider.id) {
                       'viu_ph' => {'category': '30'},
+                      'vidup' => {'sort': 'first_air_date.desc'},
                       _ => {'country': '2', 'order': '1'},
                     };
                     Navigator.push(

@@ -323,6 +323,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                   );
                 }),
+                _bundleDivider(),
+                _bundleTile(
+                  icon: Iconsax.link_21,
+                  iconColor: settings.enableTmdbMapping.value ? Colors.cyanAccent : AppTheme.textMuted,
+                  title: 'TMDB Multi-Server Mapping',
+                  subtitle: 'Auto-discover 1080p & 4K VidUP servers for KissKH/Viu titles',
+                  trailing: Switch.adaptive(
+                    value: settings.enableTmdbMapping.value,
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      settings.setEnableTmdbMapping(val);
+                      AppTheme.showGlassySnackBar(
+                        title: val ? 'TMDB Mapping Enabled' : 'TMDB Mapping Disabled',
+                        message: val
+                            ? 'Multi-server HD & 4K options enabled for playback'
+                            : 'Playback will only use native source servers',
+                        icon: Iconsax.link_21,
+                      );
+                    },
+                    activeTrackColor: AppTheme.primary,
+                  ),
+                ),
               ],
             ),
 

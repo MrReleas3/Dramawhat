@@ -316,7 +316,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   }
 
   Widget _buildGridItem(BuildContext context, int idx, MediaListItem item) {
-    final dramaId = int.tryParse(item.id) ?? 0;
+    final dramaId = int.tryParse(RegExp(r'\d+').firstMatch(item.id)?.group(0) ?? '') ?? (int.tryParse(item.id) ?? 0);
 
     return GestureDetector(
       onTap: () {
@@ -326,6 +326,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           AppTheme.performantFadeRoute(
             WatchScreen(
               animeId: dramaId,
+              rawId: item.id,
               title: item.title,
               coverImage: item.coverUrl,
             ),

@@ -10,6 +10,7 @@ import 'package:iconsax/iconsax.dart';
 
 class AnimeCard extends StatelessWidget {
   final int id;
+  final String? rawId;
   final String title;
   final String? imageUrl;
   final String? score;
@@ -20,6 +21,7 @@ class AnimeCard extends StatelessWidget {
   const AnimeCard({
     super.key,
     required this.id,
+    this.rawId,
     required this.title,
     this.imageUrl,
     this.score,
@@ -29,8 +31,10 @@ class AnimeCard extends StatelessWidget {
   });
 
   factory AnimeCard.fromMediaItem(MediaListItem item, {double width = double.infinity, VoidCallback? onTap}) {
+    final numericId = int.tryParse(RegExp(r'\d+').firstMatch(item.id)?.group(0) ?? '') ?? (int.tryParse(item.id) ?? 0);
     return AnimeCard(
-      id: int.tryParse(item.id) ?? 0,
+      id: numericId,
+      rawId: item.id,
       title: item.title,
       imageUrl: item.coverUrl,
       score: item.rating,
@@ -53,6 +57,7 @@ class AnimeCard extends StatelessWidget {
             AppTheme.performantFadeRoute(
               WatchScreen(
                 animeId: id,
+                rawId: rawId,
                 title: title,
                 coverImage: imageUrl,
               ),
@@ -249,7 +254,7 @@ class AnimeRow extends StatelessWidget {
           itemCount: displayList.length,
           itemBuilder: (context, index) {
             final item = displayList[index];
-            final dramaId = int.tryParse(item.id) ?? 0;
+            final dramaId = int.tryParse(RegExp(r'\d+').firstMatch(item.id)?.group(0) ?? '') ?? (int.tryParse(item.id) ?? 0);
 
             return GestureDetector(
               onTap: () {
@@ -261,6 +266,7 @@ class AnimeRow extends StatelessWidget {
                     AppTheme.performantFadeRoute(
                       WatchScreen(
                         animeId: dramaId,
+                        rawId: item.id,
                         title: item.title,
                         coverImage: item.coverUrl,
                       ),

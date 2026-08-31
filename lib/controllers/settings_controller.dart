@@ -36,8 +36,10 @@ class _K {
   static const preferredSubLanguage    = 'preferredSubLanguage';
   static const defaultCountryFilter    = 'defaultCountryFilter';
   static const defaultTypeFilter       = 'defaultTypeFilter';
-  // Multi-source
+  // Multi-source & TMDB mapping
   static const activeSourceId          = 'activeSourceId';
+  static const enableTmdbMapping       = 'enableTmdbMapping';
+  static const preferredStreamServer   = 'preferredStreamServer';
 }
 
 class SettingsController extends GetxController {
@@ -66,8 +68,10 @@ class SettingsController extends GetxController {
   final defaultCountryFilter      = '0'.obs;  // 0=All
   final defaultTypeFilter         = '0'.obs;  // 0=All
 
-  // ── Multi-source ──────────────────────────────────────────────────────────
+  // ── Multi-source & TMDB mapping ───────────────────────────────────────────
   final activeSourceId            = 'viu_ph'.obs;
+  final enableTmdbMapping         = true.obs;
+  final preferredStreamServer     = 'auto'.obs;
 
   // ── Reactive counters / tickers ───────────────────────────────────────────
   /// Increments whenever the anime list changes — drives reactive UI rebuilds.
@@ -110,8 +114,10 @@ class SettingsController extends GetxController {
     preferredSubLanguage.value       = _box.read(_K.preferredSubLanguage) ?? 'English';
     defaultCountryFilter.value       = _box.read(_K.defaultCountryFilter) ?? '0';
     defaultTypeFilter.value          = _box.read(_K.defaultTypeFilter)    ?? '0';
-    // Multi-source
+    // Multi-source & TMDB mapping
     activeSourceId.value             = _box.read(_K.activeSourceId) ?? 'viu_ph';
+    enableTmdbMapping.value          = _box.read(_K.enableTmdbMapping) ?? true;
+    preferredStreamServer.value      = _box.read(_K.preferredStreamServer) ?? 'auto';
     _loadVersion();
     _initVaultPin();
   }
@@ -202,13 +208,23 @@ class SettingsController extends GetxController {
     _box.write(_K.defaultTypeFilter, type);
   }
 
-  // ── Multi-source ────────────────────────────────────────────────────────
+  // ── Multi-source & TMDB mapping ─────────────────────────────────────────
   void setActiveSource(String sourceId) {
     activeSourceId.value = sourceId;
     _box.write(_K.activeSourceId, sourceId);
     SourceRegistry().setActive(sourceId);
     // Trigger global refresh so all screens reload with new source
     mainRefreshTicker.value++;
+  }
+
+  void setEnableTmdbMapping(bool val) {
+    enableTmdbMapping.value = val;
+    _box.write(_K.enableTmdbMapping, val);
+  }
+
+  void setPreferredStreamServer(String val) {
+    preferredStreamServer.value = val;
+    _box.write(_K.preferredStreamServer, val);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
