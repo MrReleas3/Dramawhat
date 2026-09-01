@@ -16,6 +16,7 @@ class StreamServerOption {
   final String streamUrl;
   final Map<String, String> headers;
   final List<SubtitleTrack> subtitles;
+  final bool isEmbed;
 
   const StreamServerOption({
     required this.id,
@@ -26,6 +27,7 @@ class StreamServerOption {
     required this.streamUrl,
     required this.headers,
     this.subtitles = const [],
+    this.isEmbed = false,
   });
 }
 
@@ -163,6 +165,7 @@ class TmdbMappingService {
         streamUrl: nativeStream.url,
         headers: nativeStream.headers,
         subtitles: nativeStream.subtitles,
+        isEmbed: nativeStream.isEmbed,
       ));
     }
 
@@ -208,6 +211,7 @@ class TmdbMappingService {
           streamUrl: '$baseEmbedUrl&server=Euro',
           headers: vidupHeaders,
           subtitles: subtitles,
+          isEmbed: true,
         ),
         StreamServerOption(
           id: 'vidup_premier',
@@ -218,6 +222,7 @@ class TmdbMappingService {
           streamUrl: '$baseEmbedUrl&server=Premier',
           headers: vidupHeaders,
           subtitles: subtitles,
+          isEmbed: true,
         ),
         StreamServerOption(
           id: 'vidup_cinex',
@@ -228,6 +233,7 @@ class TmdbMappingService {
           streamUrl: '$baseEmbedUrl&server=CineX',
           headers: vidupHeaders,
           subtitles: subtitles,
+          isEmbed: true,
         ),
         StreamServerOption(
           id: 'vidup_zenith',
@@ -238,6 +244,7 @@ class TmdbMappingService {
           streamUrl: '$baseEmbedUrl&server=Zenith',
           headers: vidupHeaders,
           subtitles: subtitles,
+          isEmbed: true,
         ),
         StreamServerOption(
           id: 'vidup_eclipse',
@@ -248,6 +255,7 @@ class TmdbMappingService {
           streamUrl: '$baseEmbedUrl&server=Eclipse',
           headers: vidupHeaders,
           subtitles: subtitles,
+          isEmbed: true,
         ),
       ]);
     }

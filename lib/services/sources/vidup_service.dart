@@ -484,6 +484,7 @@ class VidupService implements SourceProvider {
           'Origin': 'https://vidup.to',
         },
         subtitles: subtitles,
+        isEmbed: true,
       );
     } catch (e) {
       debugPrint('[VidupService] fetchVideoStream error: $e');

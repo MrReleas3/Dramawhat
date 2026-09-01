@@ -80,7 +80,7 @@ class SettingsController extends GetxController {
   final mainRefreshTicker = 0.obs;
 
   // ── App version ───────────────────────────────────────────────────────────
-  final appVersion = '0.5.7'.obs;
+  final appVersion = '0.5.9'.obs;
 
   // ── Session-only flags (not persisted) ───────────────────────────────────
   bool testingUnlocked = false;

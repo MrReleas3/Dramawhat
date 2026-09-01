@@ -223,12 +223,14 @@ class VideoStream {
   final String quality;
   final Map<String, String> headers;
   final List<SubtitleTrack> subtitles;
+  final bool isEmbed;
 
   VideoStream({
     required this.url,
     this.quality = 'KissKH Stream',
     required this.headers,
     required this.subtitles,
+    this.isEmbed = false,
   });
 }
 

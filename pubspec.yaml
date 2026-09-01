@@ -1,7 +1,7 @@
 name: vad_app
 description: "KissKH - Asian Drama & Anime Streaming"
 publish_to: 'none'
-version: 0.5.8
+version: 0.5.9
 
 environment:
   sdk: ">=3.8.1 <4.0.0"
@@ -39,6 +39,7 @@ dependencies:
   animations: ^2.1.1
   sensors_plus: ^7.0.0
   url_launcher: ^6.3.1
+  flutter_inappwebview: ^6.1.5
 
 dev_dependencies:
   flutter_test:

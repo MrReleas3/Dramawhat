@@ -19,6 +19,7 @@ import 'package:vad_app/services/recommendation_service.dart';
 import 'package:vad_app/services/tmdb_mapping_service.dart';
 import 'package:vad_app/widgets/custom_video_controls.dart';
 import 'package:vad_app/widgets/video_player_section.dart';
+import 'package:vad_app/widgets/webview_player_section.dart';
 import 'package:vad_app/widgets/anime_card.dart';
 import 'package:vad_app/screens/browse_screen.dart';
 
@@ -88,6 +89,11 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   // Multi-server switching (TMDB mapping)
   List<StreamServerOption> _availableServers = [];
   StreamServerOption? _activeServer;
+
+  // In-App WebView Player Mode (for VidUP / embed sources)
+  bool _isCurrentStreamEmbed = false;
+  String? _currentStreamUrl;
+  Map<String, String>? _currentStreamHeaders;
 
   final List<StreamSubscription> _subscriptions = [];
   SourceProvider get sourceProvider {
@@ -387,7 +393,14 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
     try {
       final stream = await sourceProvider.fetchVideoStream(ep.id);
       if (stream != null && stream.url.isNotEmpty) {
+        final isEmbed = stream.isEmbed ||
+            stream.url.contains('vidup.to') ||
+            sourceProvider.id == 'vidup';
+
         _subtitles = stream.subtitles;
+        _isCurrentStreamEmbed = isEmbed;
+        _currentStreamUrl = stream.url;
+        _currentStreamHeaders = stream.headers;
 
         // Auto-select preferred subtitle (e.g. English) if available
         SubtitleTrack? defaultSub;
@@ -405,23 +418,36 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
 
         if (defaultSub != null) {
           _activeSubtitle = defaultSub;
-          _applySubtitleTrack(defaultSub);
+          if (!isEmbed) {
+            _applySubtitleTrack(defaultSub);
+          }
         }
 
         // Save watch history entry (reads history to set _seekToMs for resume)
         _saveWatchHistoryOnEpisodeChange();
 
-        await _player.open(
-          Media(
-            stream.url,
-            httpHeaders: stream.headers,
-          ),
-        );
+        if (isEmbed) {
+          // Embed stream (VidUP) — InAppWebView handles playback directly
+          _player.stop();
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        } else {
+          // Native stream (KissKH, Viu) — Open in media_kit
+          await _player.open(
+            Media(
+              stream.url,
+              httpHeaders: stream.headers,
+            ),
+          );
 
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
         }
 
         // Populate TMDB multi-server list in background (if enabled)
@@ -499,17 +525,26 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
   Future<void> _switchToServer(StreamServerOption server) async {
     if (server.id == _activeServer?.id) return;
     final posMs = _player.state.position.inMilliseconds;
+    final isEmbed = server.isEmbed || server.streamUrl.contains('vidup.to');
 
     _player.stop();
     setState(() {
-      _isLoading = true;
+      _isLoading = !isEmbed;
       _errorMessage = null;
       _activeServer = server;
       _subtitles = server.subtitles;
       _activeSubtitle = null;
+      _isCurrentStreamEmbed = isEmbed;
+      _currentStreamUrl = server.streamUrl;
+      _currentStreamHeaders = server.headers;
     });
 
     settings.preferredStreamServer.value = server.id;
+
+    if (isEmbed) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
       await _player.open(
@@ -985,6 +1020,44 @@ class _WatchScreenState extends State<WatchScreen> with WidgetsBindingObserver {
         ? currentEp.episodeNumber.toInt()
         : _currentEpisodeIndex + 1;
 
+    // ── In-App WebView Player Mode for VidUP / Embed streams ────────────────
+    if (_isCurrentStreamEmbed && _currentStreamUrl != null && _currentStreamUrl!.isNotEmpty) {
+      return WebViewPlayerSection(
+        streamUrl: _currentStreamUrl!,
+        headers: _currentStreamHeaders,
+        title: _details?.title ?? widget.title,
+        subtitle: epTitle,
+        episodeNumber: epNumber,
+        episodes: _episodes,
+        currentEpisodeIndex: _currentEpisodeIndex,
+        onEpisodeTapped: (idx) => _loadVideoForEpisode(idx),
+        nextEpisodeName: (_currentEpisodeIndex + 1 < _episodes.length)
+            ? _episodes[_currentEpisodeIndex + 1].title
+            : null,
+        onNextEpisode: (_currentEpisodeIndex + 1 < _episodes.length)
+            ? () => _loadVideoForEpisode(_currentEpisodeIndex + 1)
+            : null,
+        onPreviousEpisode: (_currentEpisodeIndex > 0)
+            ? () => _loadVideoForEpisode(_currentEpisodeIndex - 1)
+            : null,
+        onBack: () {
+          if (_isFullscreen) {
+            _exitVideoPlayer();
+          } else {
+            Navigator.pop(context);
+          }
+        },
+        onServersTapped: _availableServers.isNotEmpty ? _showServerPickerSheet : null,
+        activeServerName: _activeServer?.name ?? 'VidUP Embed',
+        isFullscreen: _isFullscreen,
+        onFullscreenTapped: _toggleFullscreen,
+        isLandscape: _isPlayerLandscape,
+        onOrientationToggle: _togglePlayerOrientation,
+        onRetry: () => _loadVideoForEpisode(_currentEpisodeIndex),
+      );
+    }
+
+    // ── Native MediaKit Player for KissKH / Viu HLS/MP4 streams ──────────────
     return VideoPlayerSection(
       player: _player,
       controller: _videoController,
